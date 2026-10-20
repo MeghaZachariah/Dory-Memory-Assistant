@@ -1,0 +1,149 @@
+{
+  "persona": {
+    "person_id": "mary",
+    "person_name": "Mary",
+    "family": ["Anu", "Ravi"],
+    "note": "Fictional test persona. Anu is her daughter, Ravi her son, Lakshmi a neighbour."
+  },
+  "conversations": [
+    {
+      "id": "c01",
+      "conversation_date": "2026-10-12",
+      "turns": [
+        {"speaker": "Dory", "text": "Good evening, Mary. How was your day?"},
+        {"speaker": "Mary", "text": "Anu came over for lunch. We had fish curry and rice."},
+        {"speaker": "Dory", "text": "That sounds lovely. Anything else?"},
+        {"speaker": "Mary", "text": "In the evening I watered the jasmine plants."}
+      ],
+      "expected": [
+        {"quote_contains": "Anu came over for lunch", "date": "2026-10-12", "who": ["Anu"]},
+        {"quote_contains": "watered the jasmine plants", "date": "2026-10-12"}
+      ],
+      "must_not_store": []
+    },
+    {
+      "id": "c02",
+      "conversation_date": "2026-10-13",
+      "turns": [
+        {"speaker": "Dory", "text": "Hello Mary. What did you do today?"},
+        {"speaker": "Mary", "text": "Lakshmi from next door brought me banana chips."},
+        {"speaker": "Dory", "text": "How kind. Is anything planned for the week?"},
+        {"speaker": "Mary", "text": "The doctor is coming on Thursday at 4 pm."}
+      ],
+      "expected": [
+        {"quote_contains": "Lakshmi from next door brought me banana chips", "date": "2026-10-13", "who": ["Lakshmi"]},
+        {"quote_contains": "The doctor is coming on Thursday at 4 pm", "date": "2026-10-15", "time": "4 pm"}
+      ],
+      "must_not_store": []
+    },
+    {
+      "id": "c03",
+      "conversation_date": "2026-10-14",
+      "turns": [
+        {"speaker": "Dory", "text": "Good evening. Did Ravi call today?"},
+        {"speaker": "Mary", "text": "No, nobody called today."},
+        {"speaker": "Dory", "text": "What did you do?"},
+        {"speaker": "Mary", "text": "I read the newspaper on the veranda."}
+      ],
+      "expected": [
+        {"quote_contains": "read the newspaper on the veranda", "date": "2026-10-14"}
+      ],
+      "must_not_store": ["Ravi called", "Ravi phoned"]
+    },
+    {
+      "id": "c04",
+      "conversation_date": "2026-10-15",
+      "turns": [
+        {"speaker": "Dory", "text": "How was today, Mary?"},
+        {"speaker": "Mary", "text": "The doctor came at 4 and said my knees are fine."},
+        {"speaker": "Mary", "text": "My back hurts a little tonight."}
+      ],
+      "expected": [
+        {"quote_contains": "The doctor came at 4", "date": "2026-10-15"}
+      ],
+      "must_not_store": ["back hurts"]
+    },
+    {
+      "id": "c05",
+      "conversation_date": "2026-10-16",
+      "turns": [
+        {"speaker": "Dory", "text": "Good evening. What happened today?"},
+        {"speaker": "Mary", "text": "Ravi took me to the temple in the morning."},
+        {"speaker": "Mary", "text": "I took my tablets after breakfast."}
+      ],
+      "expected": [
+        {"quote_contains": "Ravi took me to the temple", "date": "2026-10-16", "who": ["Ravi"]}
+      ],
+      "must_not_store": ["tablets"]
+    },
+    {
+      "id": "c06",
+      "conversation_date": "2026-10-17",
+      "turns": [
+        {"speaker": "Dory", "text": "Hello Mary. How are you this evening?"},
+        {"speaker": "Mary", "text": "Fine. Yesterday the electrician fixed the fan."},
+        {"speaker": "Dory", "text": "Good. And today?"},
+        {"speaker": "Mary", "text": "Today I made payasam with Anu."}
+      ],
+      "expected": [
+        {"quote_contains": "the electrician fixed the fan", "date": "2026-10-16"},
+        {"quote_contains": "I made payasam with Anu", "date": "2026-10-17", "who": ["Anu"]}
+      ],
+      "must_not_store": []
+    },
+    {
+      "id": "c07",
+      "conversation_date": "2026-10-18",
+      "turns": [
+        {"speaker": "Dory", "text": "Good evening, Mary."},
+        {"speaker": "Mary", "text": "Anu says she will visit tomorrow at 11."},
+        {"speaker": "Mary", "text": "Ravi's birthday is on the 25th of October."}
+      ],
+      "expected": [
+        {"quote_contains": "Anu says she will visit tomorrow at 11", "date": "2026-10-19", "who": ["Anu"], "time": "11"},
+        {"quote_contains": "Ravi's birthday is on the 25th of October", "date": "2026-10-25", "who": ["Ravi"]}
+      ],
+      "must_not_store": []
+    },
+    {
+      "id": "c08",
+      "conversation_date": "2026-10-19",
+      "turns": [
+        {"speaker": "Dory", "text": "How was your day?"},
+        {"speaker": "Mary", "text": "The day before yesterday I spoke to my sister Susan on the phone."},
+        {"speaker": "Mary", "text": "Today I just rested."}
+      ],
+      "expected": [
+        {"quote_contains": "spoke to my sister Susan on the phone", "date": "2026-10-17", "who": ["Susan"]},
+        {"quote_contains": "Today I just rested", "date": "2026-10-19"}
+      ],
+      "must_not_store": []
+    },
+    {
+      "id": "c09",
+      "conversation_date": "2026-10-20",
+      "turns": [
+        {"speaker": "Dory", "text": "Good evening, Mary. Anything happen today?"},
+        {"speaker": "Mary", "text": "Not much."},
+        {"speaker": "Dory", "text": "That's all right. Any plans this week?"},
+        {"speaker": "Mary", "text": "I don't remember."}
+      ],
+      "expected": [],
+      "must_not_store": ["plans"]
+    },
+    {
+      "id": "c10",
+      "conversation_date": "2026-10-21",
+      "turns": [
+        {"speaker": "Dory", "text": "Hello Mary. How was today?"},
+        {"speaker": "Mary", "text": "Anu and Ravi both came for dinner. We had appam and stew."},
+        {"speaker": "Mary", "text": "On Friday we are going to the beach."}
+      ],
+      "expected": [
+        {"quote_contains": "Anu and Ravi both came for dinner", "date": "2026-10-21", "who": ["Anu", "Ravi"]},
+        {"quote_contains": "On Friday we are going to the beach", "date": "2026-10-23"}
+      ],
+      "must_not_store": []
+    }
+  ]
+}
