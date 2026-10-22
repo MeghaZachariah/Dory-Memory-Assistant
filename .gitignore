@@ -13,3 +13,8 @@ db/dory.db
 
 # Mac OS system files
 .DS_Store
+
+# Secrets and local test/log output
+.env
+.pytest_cache/
+backend/ai/logs/

@@ -37,6 +37,12 @@ class DoryDB(Protocol):
     def close_question(self, question_id: int, answer: str, answered_by: str) -> None:
         """Mark a family question answered WITHOUT saving a new fact (used for "verify_statement" questions)."""
 
+    def list_questions(self, person_id: str, status: Optional[str] = None) -> list[dict]:
+        """Questions sent to the family (for the dashboard). status: "pending" | "answered" | None for all."""
+
+    def add_med_log(self, entry: MedLogEntry) -> None:
+        """Caregiver logs a medicine (the bot's /gave command)."""
+
     def get_med_log(self, person_id: str, since: Optional[datetime] = None) -> list[MedLogEntry]:
         """Caregiver-confirmed medication entries, newest first."""
 

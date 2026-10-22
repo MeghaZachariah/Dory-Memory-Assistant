@@ -1,0 +1,25 @@
+name: dory_app
+description: Dory, the memory assistant that never guesses. Android app that rings like a phone call.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_callkit_incoming: ^3.1.0   # incoming-call screen, even on a locked phone
+  speech_to_text: ^7.0.0             # Android's built-in speech recognition (free)
+  flutter_tts: ^4.0.0                # Android's built-in text-to-speech (free)
+  android_alarm_manager_plus: ^5.0.0 # daily 8 pm / 8 am calls, even when the app is closed
+  shared_preferences: ^2.2.0
+  http: ^1.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

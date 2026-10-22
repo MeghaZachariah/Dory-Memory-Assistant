@@ -81,9 +81,15 @@ class FakeDB:
         q = self.questions[question_id]
         q.update(status="answered", answer=answer, answered_by=answered_by)
 
+    def list_questions(self, person_id: str, status: Optional[str] = None) -> list[dict]:
+        rows = [q for q in self.questions.values() if q["person_id"] == person_id and (status is None or q["status"] == status)]
+        return sorted(rows, key=lambda q: q["created_at"], reverse=True)
+
     # --- medication --------------------------------------------------------
-    def add_med(self, entry: MedLogEntry) -> None:
+    def add_med_log(self, entry: MedLogEntry) -> None:
         self.med_log.append(entry)
+
+    add_med = add_med_log  # older name used in tests
 
     def get_med_log(self, person_id: str, since: Optional[datetime] = None) -> list[MedLogEntry]:
         rows = [m for m in self.med_log if m.person_id == person_id and (since is None or m.given_at >= since)]

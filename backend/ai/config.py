@@ -10,6 +10,14 @@ and then set DORY_MODEL_NANO / DORY_MODEL_SUPER / DORY_MODEL_ULTRA.
 import os
 from pathlib import Path
 
+# Load settings from a .env file in the repo root, if present.
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+except ImportError:  # python-dotenv not installed: use real environment variables only
+    pass
+
 # --- Nebius Token Factory -------------------------------------------------
 # OpenAI-compatible endpoint. The API key is read from NEBIUS_API_KEY.
 BASE_URL = os.getenv("NEBIUS_BASE_URL", "https://api.tokenfactory.nebius.com/v1/")
@@ -56,4 +64,4 @@ SAFE_UNKNOWN_REPLY = "I'm not sure. Shall I ask your family?"
 SAFE_UNKNOWN_ASKED_REPLY = "I'm not sure about that. I've asked your family, and I'll tell you when they reply."
 SAFE_REFUSED_REPLY = "I can't help with that one, but your family can. I'll let them know."
 STATEMENT_REPLY = "Thank you for telling me."
-ERROR_REPLY ="Sorry, I didn't catch that. Could you say it again?"
+ERROR_REPLY = "Sorry, I didn't catch that. Could you say it again?"
