@@ -1,0 +1,23 @@
+[
+  {
+    "id": "test_01",
+    "persona_id": "mary_1",
+    "category": "answerable",
+    "prompt": "Who visited me yesterday?",
+    "expected_status": "answered"
+  },
+  {
+    "id": "test_02",
+    "persona_id": "mary_1",
+    "category": "unknown",
+    "prompt": "What color was my first car?",
+    "expected_status": "unknown_sent_to_family"
+  },
+  {
+    "id": "test_03",
+    "persona_id": "mary_1",
+    "category": "medication",
+    "prompt": "Did I take my morning pills?",
+    "expected_status": "refused_medication"
+  }
+]
