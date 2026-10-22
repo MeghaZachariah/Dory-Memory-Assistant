@@ -1,0 +1,15 @@
+# Python bytecode and caches
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments (if you ever use them)
+venv/
+.venv/
+ENV/
+
+# Local SQLite databases (each developer generates their own)
+db/dory.db
+
+# Mac OS system files
+.DS_Store
