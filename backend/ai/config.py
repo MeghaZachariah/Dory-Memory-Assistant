@@ -33,6 +33,7 @@ MODELS = {
 # Which tier does which job. Change here after measuring speed.
 TIER_FOR = {
     "answer": os.getenv("DORY_TIER_ANSWER", "nano"),      # live conversation turns
+    "evening": os.getenv("DORY_TIER_EVENING", "nano"),    # evening call, one line at a time
     "classify": os.getenv("DORY_TIER_CLASSIFY", "nano"),  # medication / health triage
     "extract": os.getenv("DORY_TIER_EXTRACT", "super"),   # facts from evening chat
     "check": os.getenv("DORY_TIER_CHECK", "super"),       # lie-catcher
@@ -53,6 +54,11 @@ LOG_PATH = Path(os.getenv("DORY_LOG_PATH", Path(__file__).parent / "logs" / "mod
 
 # How many stored facts to put in the answering prompt (newest first).
 MAX_FACTS_IN_PROMPT = int(os.getenv("DORY_MAX_FACTS", "200"))
+
+# Evening call: "1" lets the model hold the conversation; "0" uses the fixed questions.
+# The fixed questions are also the fallback whenever the model fails.
+EVENING_LLM = os.getenv("DORY_EVENING_LLM", "1") == "1"
+EVENING_MAX_QUESTIONS = int(os.getenv("DORY_EVENING_MAX_QUESTIONS", "10"))
 
 # Lie-catcher settings. The code checks always run. The second model call can be
 # turned off if replies are too slow; if it errors, the answer is blocked (fail closed).

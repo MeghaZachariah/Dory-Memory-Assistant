@@ -12,6 +12,7 @@ Handler = Union[str, dict, list, Callable[[list], Any], Exception]
 
 JOBS = {
     "extract": "pull out FACTS",
+    "evening": "evening phone call",
     "answer": "gentle memory assistant",
     "check": "strict fact-checker",
     "verify": "You cross-check something",
