@@ -28,6 +28,12 @@ from backend.ai.schemas import Fact, MedLogEntry
 SAMPLES_PATH = Path(__file__).resolve().parents[1] / "ai" / "samples" / "conversations.json"
 APP_TOKEN = os.getenv("DORY_APP_TOKEN", "")
 
+# DORY_DB=sqlite keeps everything in Person C's db/dory.db; otherwise it is in memory.
+if os.getenv("DORY_DB", "").lower() == "sqlite":
+    from backend.ai.crud_db import CrudDB
+
+    set_db(CrudDB())
+
 
 def check_token(x_dory_token: Optional[str] = Header(default=None)) -> None:
     if APP_TOKEN and x_dory_token != APP_TOKEN:
@@ -201,7 +207,11 @@ def get_med_log(person_id: str) -> list[dict]:
 def demo_reset() -> dict:
     from backend.ai.fake_db import FakeDB
 
-    set_db(FakeDB())
+    db = get_db()
+    if hasattr(db, "reset"):  # the SQLite database: empty it rather than swap it out
+        db.reset()
+    else:
+        set_db(FakeDB())
     PROFILES.clear()
     _load_default_profile()
     return {"ok": True}

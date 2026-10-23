@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 os.environ.setdefault("DORY_LOG_PATH", str(Path(tempfile.gettempdir()) / "dory_test_calls.jsonl"))
+os.environ["DORY_DB"] = "memory"  # never wipe the real db/dory.db from a test
 
 from fastapi.testclient import TestClient  # noqa: E402
 
