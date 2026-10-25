@@ -1,142 +1,201 @@
-import React, { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from "react";
+import { PERSON_ID } from "./config";
+import { addMemoryFact, getDashboard, logMedicine, postFamilyAnswer } from "./api";
+import "./dashboard.css";
 
-const API_BASE = "http://localhost:8000/api";
+const TABS = ["Today", "Dory's answers", "Facts", "Questions", "Memory Book"];
+
+const time = (iso) =>
+  iso ? new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+
+function factBadge(f) {
+  if (f.source_type === "person_chat") return "Said by Mum";
+  if (f.source_type === "memory_book") return `Memory Book, ${f.confirmed_by}`;
+  if (f.source_type === "family_answer") return `Told by ${f.confirmed_by}`;
+  return f.source_type;
+}
+
+function AnswerBadge({ entry }) {
+  if (entry.blocked) return <span className="badge bad">Blocked by checker</span>;
+  if (entry.status === "refused") return <span className="badge warn">Medicine rule</span>;
+  if (entry.status === "emergency") return <span className="badge bad">Emergency</span>;
+  if (entry.status === "unknown") return <span className="badge info">Asked family</span>;
+  return <span className="badge ok">Passed</span>;
+}
 
 export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState("logs");
-  const [summaryData, setSummaryData] = useState(null);
-  const [facts, setFacts] = useState([]);
-  const [logs, setLogs] = useState([]);
-  const [questions, setQuestions] = useState([]);
+  const [tab, setTab] = useState(TABS[0]);
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    fetch(`${API_BASE}/dashboard/summary`).then(res => res.json()).then(setSummaryData);
-    fetch(`${API_BASE}/dashboard/facts`).then(res => res.json()).then(setFacts);
-    fetch(`${API_BASE}/dashboard/logs`).then(res => res.json()).then(setLogs);
-    fetch(`${API_BASE}/dashboard/questions`).then(res => res.json()).then(setQuestions);
+  const load = useCallback(async () => {
+    try {
+      setData(await getDashboard(PERSON_ID));
+      setError("");
+    } catch {
+      setError("Can't reach Dory's server. Check that the backend is running.");
+    }
   }, []);
 
+  useEffect(() => {
+    load();
+    const timer = setInterval(load, 3000); // live updates for the demo
+    return () => clearInterval(timer);
+  }, [load]);
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col">
-      <header className="bg-slate-900 text-white p-6 shadow-md flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold tracking-wide">DORY Family Dashboard</h1>
-          <p className="text-slate-400 text-sm">Monitoring & Safety Controls for Mum</p>
-        </div>
-        <div className="flex gap-2">
-          <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full text-xs font-semibold">● Lie-Catcher Active</span>
-          <span className="px-3 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-full text-xs font-semibold">● Bot Listening</span>
-        </div>
+    <div className="dash">
+      <header className="dash-top">
+        <h1>Dory <small>for {data?.person.name ?? "..."}</small></h1>
+        <nav role="tablist" aria-label="Dashboard sections">
+          {TABS.map((t) => (
+            <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}>
+              {t}
+            </button>
+          ))}
+        </nav>
       </header>
 
-      <nav className="bg-white border-b border-slate-200 px-6 flex gap-8">
-        {[
-          { id: "logs", label: "Dory's Answers (Lie-Catcher)" },
-          { id: "facts", label: "Saved Facts (Receipts)" },
-          { id: "summary", label: "Today's Overview" },
-          { id: "questions", label: "Family Questions" },
-          { id: "memory", label: "Memory Book & Meds" }
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`py-4 font-semibold text-sm border-b-2 transition-colors ${
-              activeTab === tab.id ? "border-amber-600 text-amber-700" : "border-transparent text-slate-500 hover:text-slate-800"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>
+      {error && <p className="banner">{error}</p>}
+      {!data && !error && <p>Loading...</p>}
 
-      <main className="flex-1 p-6 max-w-6xl mx-auto w-full">
-        {activeTab === "logs" && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-800 mb-4">Live Lie-Catcher Log</h2>
-            {logs.map(log => (
-              <div key={log.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex justify-between items-start">
-                <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{log.timestamp}</p>
-                  <p className="font-semibold text-slate-900 text-lg mb-2">"{log.question}"</p>
-                  <p className="text-slate-600 bg-slate-50 p-3 rounded-lg text-sm border border-slate-100">
-                    <strong className="text-slate-800">Dory answered:</strong> {log.answer}
-                  </p>
-                </div>
-                <div>
-                  {log.passed ? (
-                    <span className="px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full border border-emerald-300">✓ Passed Checker</span>
-                  ) : (
-                    <span className="px-3 py-1 bg-red-100 text-red-800 text-xs font-bold rounded-full border border-red-300">🛑 Blocked by Checker</span>
-                  )}
-                </div>
-              </div>
+      {data && tab === "Today" && (
+        <section>
+          <p className="summary">{data.summary}</p>
+          <div className="counts">
+            {[
+              ["Questions asked", data.counts.asked],
+              ["Answered by Dory", data.counts.answered_by_dory],
+              ["Asked family", data.counts.asked_family],
+              ["Blocked by checker", data.counts.blocked],
+              ["Medicine rule used", data.counts.refused_medicine],
+            ].map(([label, n]) => (
+              <div className="count" key={label}><b>{n}</b><span>{label}</span></div>
             ))}
           </div>
-        )}
-
-        {activeTab === "facts" && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-800 mb-4">Extracted Facts & Source Receipts</h2>
-            <div className="grid md:grid-cols-2 gap-4">
-              {facts.map(fact => (
-                <div key={fact.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
-                  <div>
-                    <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-md mb-3 inline-block">Verified Fact #{fact.id}</span>
-                    <p className="text-slate-800 font-medium text-base mb-3">{fact.text}</p>
-                  </div>
-                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs text-slate-500">
-                    <strong>Source Quote:</strong> "{fact.source_quote}"
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeTab === "summary" && summaryData && (
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="md:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-              <h3 className="text-lg font-bold mb-3">Daily AI Briefing Summary</h3>
-              <p className="text-slate-700 leading-relaxed bg-amber-50/50 p-4 rounded-lg border border-amber-100">{summaryData.today_summary}</p>
-            </div>
-            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-              <h3 className="text-lg font-bold mb-3 text-red-600">Caregiver Alerts</h3>
-              <ul className="space-y-2">
-                {summaryData.alerts.map((alert, idx) => (
-                  <li key={idx} className="p-3 bg-red-50 text-red-700 rounded-lg text-sm border border-red-100 font-medium">⚠️ {alert}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "questions" && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-800 mb-4">Ask-the-Family Questions</h2>
-            {questions.map(q => (
-              <div key={q.id} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
-                <div>
-                  <span className="text-xs font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded uppercase">{q.status}</span>
-                  <p className="font-semibold text-slate-800 text-lg mt-2">{q.question}</p>
-                </div>
-              </div>
+          <h2>Needs attention</h2>
+          {data.alerts.length === 0 && <p className="muted">Nothing needs attention.</p>}
+          <ul className="alerts">
+            {data.alerts.map((a, i) => (
+              <li key={i} className={`alert ${a.level}`}>{a.text}</li>
             ))}
-          </div>
-        )}
+          </ul>
+        </section>
+      )}
 
-        {activeTab === "memory" && (
-          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm max-w-xl mx-auto">
-            <h2 className="text-xl font-bold text-slate-800 mb-4">Add Fact to Memory Book</h2>
-            <form onSubmit={e => e.preventDefault()} className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">New Fact</label>
-                <input type="text" placeholder="e.g. Wedding anniversary is June 12" className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"/>
-              </div>
-              <button className="w-full py-2.5 bg-amber-600 text-white font-semibold rounded-lg hover:bg-amber-700">Save to Grounded Memory</button>
-            </form>
-          </div>
-        )}
-      </main>
+      {data && tab === "Dory's answers" && (
+        <section>
+          <p className="muted">Everything Dory said, newest first. Every answer is checked against its sources before it is spoken.</p>
+          {data.answers_log.length === 0 && <p>No questions yet.</p>}
+          {data.answers_log.map((e) => (
+            <article key={e.id} className="row">
+              <div className="row-head"><AnswerBadge entry={e} /><span className="muted">{time(e.time)} · {e.model_tier}</span></div>
+              <p className="q">"{e.question}"</p>
+              {e.blocked && e.draft && <p className="draft">Draft blocked (no source): {e.draft}</p>}
+              <p>{e.answer}</p>
+              {e.sources.length > 0 && (
+                <p className="muted">Sources: {e.sources.map((s) => s.label).join("; ")}</p>
+              )}
+            </article>
+          ))}
+        </section>
+      )}
+
+      {data && tab === "Facts" && (
+        <section>
+          <p className="muted">What Dory knows, with the exact words it came from.</p>
+          {data.facts.map((f) => (
+            <article key={f.id} className="row">
+              <div className="row-head"><span className="badge info">{factBadge(f)}</span><span className="muted">{time(f.source_time)}</span></div>
+              <p>{f.text}</p>
+              {f.source_quote && <p className="quote">"{f.source_quote}"</p>}
+            </article>
+          ))}
+        </section>
+      )}
+
+      {data && tab === "Questions" && <Questions questions={data.questions} onDone={load} />}
+      {data && tab === "Memory Book" && <MemoryBook meds={data.med_log} onDone={load} />}
     </div>
+  );
+}
+
+function Questions({ questions, onDone }) {
+  const [drafts, setDrafts] = useState({});
+  const [by, setBy] = useState("Anu");
+  const [msg, setMsg] = useState("");
+
+  async function save(q) {
+    try {
+      await postFamilyAnswer({ question_id: q.id, answer: drafts[q.id], answered_by: by });
+      setMsg("");
+      onDone();
+    } catch {
+      setMsg("Could not save. Only registered family can answer, and each question once.");
+    }
+  }
+
+  return (
+    <section>
+      <label className="inline">Answering as <input value={by} onChange={(e) => setBy(e.target.value)} /></label>
+      {msg && <p className="banner">{msg}</p>}
+      {questions.length === 0 && <p>No questions yet.</p>}
+      {questions.map((q) => (
+        <article key={q.id} className="row">
+          <div className="row-head">
+            <span className={`badge ${q.status === "pending" ? "warn" : "ok"}`}>{q.status}</span>
+            <span className="muted">Asked {q.asked_to} · {time(q.asked_at)}</span>
+          </div>
+          <p className="q">"{q.text}"</p>
+          {q.status === "pending" ? (
+            <div className="form-row">
+              <input placeholder="Type the answer" value={drafts[q.id] || ""}
+                onChange={(e) => setDrafts({ ...drafts, [q.id]: e.target.value })} />
+              <button disabled={!drafts[q.id]?.trim()} onClick={() => save(q)}>Save answer</button>
+            </div>
+          ) : (
+            <p>{q.answer} <span className="muted">(told by {q.answered_by})</span></p>
+          )}
+        </article>
+      ))}
+    </section>
+  );
+}
+
+function MemoryBook({ meds, onDone }) {
+  const [fact, setFact] = useState("");
+  const [by, setBy] = useState("Anu");
+  const [med, setMed] = useState({ medicine: "", time: "", confirmed_by: "Priya (caregiver)" });
+  const [msg, setMsg] = useState("");
+
+  async function run(fn, reset) {
+    try { await fn(); reset(); setMsg(""); onDone(); }
+    catch { setMsg("Could not save. Check the name is a registered family member or caregiver."); }
+  }
+
+  return (
+    <section>
+      {msg && <p className="banner">{msg}</p>}
+      <h2>Add to the Memory Book</h2>
+      <p className="muted">Facts family type here are the most trusted source.</p>
+      <div className="form-row">
+        <input placeholder="e.g. Mum's wedding was on June 12, 1989" value={fact} onChange={(e) => setFact(e.target.value)} />
+        <input className="short" value={by} onChange={(e) => setBy(e.target.value)} aria-label="Added by" />
+        <button disabled={!fact.trim()} onClick={() => run(() => addMemoryFact({ text: fact, added_by: by }), () => setFact(""))}>Add fact</button>
+      </div>
+
+      <h2>Medicine log</h2>
+      <p className="muted">Only this log is used when Mum asks about tablets.</p>
+      <div className="form-row">
+        <input placeholder="Medicine" value={med.medicine} onChange={(e) => setMed({ ...med, medicine: e.target.value })} />
+        <input className="short" placeholder="09:00" value={med.time} onChange={(e) => setMed({ ...med, time: e.target.value })} />
+        <input className="short" value={med.confirmed_by} onChange={(e) => setMed({ ...med, confirmed_by: e.target.value })} aria-label="Logged by" />
+        <button disabled={!med.medicine.trim() || !med.time.trim()}
+          onClick={() => run(() => logMedicine(med), () => setMed({ ...med, medicine: "", time: "" }))}>Log it</button>
+      </div>
+      <ul className="meds">
+        {meds.map((m) => <li key={m.id}>{m.date} {m.time} · {m.medicine} <span className="muted">({m.confirmed_by})</span></li>)}
+      </ul>
+    </section>
   );
 }
