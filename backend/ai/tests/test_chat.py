@@ -36,7 +36,7 @@ def test_grounded_answer_passes(fake_model, db, mary):
     assert r.status == "answered" and not r.blocked
     assert r.reply.startswith("Yes. Anu visited yesterday")
     assert r.fact_ids_used == [mary["visit"]]
-    assert r.tiers_used == ["nano", "super"]
+    assert r.tiers_used == [config.TIER_FOR["answer"], config.TIER_FOR["check"]]  # whatever .env sets
     assert db.events[-1]["payload"]["badge"] == "passed"
 
 
@@ -176,4 +176,4 @@ def test_borderline_classified_other_goes_to_memory(fake_model, db, mary):
     fake_model.on("check", {"verdict": "supported"})
     r = ask("When is the doctor coming?")
     assert r.status == "answered" and r.reply == "The doctor is coming on Thursday at 4 pm."
-    assert r.tiers_used == ["nano", "super"] or r.tiers_used[-2:] == ["nano", "super"]
+    assert r.tiers_used[-2:] == [config.TIER_FOR["answer"], config.TIER_FOR["check"]]

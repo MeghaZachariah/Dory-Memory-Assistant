@@ -301,8 +301,11 @@ def _question_key(q: str) -> str:
     return " ".join(words) or normalize(q)
 
 
-def summary(person_id: str, *, person_name: str = "", day: Optional[date] = None) -> SummaryResult:
-    """Daily update for the family (sent by Person B's bot). Written by Nemotron Ultra."""
+def summary(person_id: str, *, person_name: str = "", day: Optional[date] = None,
+            use_model: bool = True) -> SummaryResult:
+    """Daily update for the family (sent by Person B's bot). Written by Nemotron Ultra.
+    use_model=False returns the plain template text straight away and logs nothing (for
+    screens that refresh every few seconds)."""
     day = day or date.today()
     db = get_db()
     start = datetime.combine(day, datetime.min.time())
@@ -353,6 +356,8 @@ def summary(person_id: str, *, person_name: str = "", day: Optional[date] = None
     if blocked:
         fallback_lines.append(f"Answers blocked by the safety check: {len(blocked)}.")
     fallback = " ".join(fallback_lines)
+    if not use_model:
+        return SummaryResult(text=fallback, alerts=alerts, stats=stats, used_fallback=True)
 
     user = prompts.SUMMARY_USER.format(
         person_name=person_name or "them",

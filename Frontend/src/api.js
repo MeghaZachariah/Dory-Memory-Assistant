@@ -17,7 +17,11 @@ export const chat = (body) => post("/chat", body);
 export const getBriefing = (personId) =>
   request(`/briefing/morning?person_id=${encodeURIComponent(personId)}`);
 export const finishEvening = (body) => post("/checkin/evening/finish", body);
-export const resetDemo = () => post("/demo/reset", {});
+// Wipe everything, then load the sample person's memories again (no AI credits used).
+export const resetDemo = async () => {
+  await post("/demo/reset", {});
+  return post("/demo/load", {});
+};
 
 // Used by the family dashboard (next task)
 export const getDashboard = (personId) => request(`/dashboard/${encodeURIComponent(personId)}`);

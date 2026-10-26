@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { PERSON_ID } from "./config";
+import { PERSON_ID, PERSON_NAME } from "./config";
 import { addMemoryFact, getDashboard, logMedicine, postFamilyAnswer } from "./api";
 import "./dashboard.css";
 
@@ -9,7 +9,7 @@ const time = (iso) =>
   iso ? new Date(iso).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
 
 function factBadge(f) {
-  if (f.source_type === "person_chat") return "Said by Mum";
+  if (f.source_type === "person_chat") return `Said by ${PERSON_NAME}`;
   if (f.source_type === "memory_book") return `Memory Book, ${f.confirmed_by}`;
   if (f.source_type === "family_answer") return `Told by ${f.confirmed_by}`;
   return f.source_type;
@@ -179,13 +179,13 @@ function MemoryBook({ meds, onDone }) {
       <h2>Add to the Memory Book</h2>
       <p className="muted">Facts family type here are the most trusted source.</p>
       <div className="form-row">
-        <input placeholder="e.g. Mum's wedding was on June 12, 1989" value={fact} onChange={(e) => setFact(e.target.value)} />
+        <input placeholder={`e.g. ${PERSON_NAME}'s wedding was on June 12, 1989`} value={fact} onChange={(e) => setFact(e.target.value)} />
         <input className="short" value={by} onChange={(e) => setBy(e.target.value)} aria-label="Added by" />
         <button disabled={!fact.trim()} onClick={() => run(() => addMemoryFact({ text: fact, added_by: by }), () => setFact(""))}>Add fact</button>
       </div>
 
       <h2>Medicine log</h2>
-      <p className="muted">Only this log is used when Mum asks about tablets.</p>
+      <p className="muted">Only this log is used when {PERSON_NAME} asks about tablets.</p>
       <div className="form-row">
         <input placeholder="Medicine" value={med.medicine} onChange={(e) => setMed({ ...med, medicine: e.target.value })} />
         <input className="short" placeholder="09:00" value={med.time} onChange={(e) => setMed({ ...med, time: e.target.value })} />

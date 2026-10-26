@@ -13,11 +13,12 @@ from __future__ import annotations
 
 import json
 import os
+from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -40,9 +41,24 @@ def check_token(x_dory_token: Optional[str] = Header(default=None)) -> None:
         raise HTTPException(status_code=401, detail="Missing or wrong X-Dory-Token header")
 
 
-app = FastAPI(title="Dory API", version="0.1.0")
+from backend.api import auth, compat, voice  # noqa: E402
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    auth.ensure_demo_account()  # the demo login for Mary
+    yield
+
+
+app = FastAPI(title="Dory API", version="0.1.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-secured = [Depends(check_token)]
+
+# Signed-in families may only reach their own person (auth.login_guard).
+secured = [Depends(check_token), Depends(auth.login_guard)]
+
+app.include_router(auth.router, dependencies=[Depends(check_token)])  # sign up, log in
+app.include_router(voice.router, dependencies=secured)  # family voice (optional)
+app.include_router(compat.router, dependencies=secured)  # web screen, dashboard and bot (mock_server shapes)
 
 
 # ---------------------------------------------------------------------------
@@ -53,6 +69,7 @@ class Profile(BaseModel):
     person_id: str
     name: str = ""
     family_names: list[str] = Field(default_factory=list)
+    caregivers: list[str] = Field(default_factory=list)  # may log medicine (dashboard, bot /gave)
 
 
 PROFILES: dict[str, Profile] = {}
@@ -62,7 +79,8 @@ def _load_default_profile() -> None:
     try:
         persona = json.loads(SAMPLES_PATH.read_text())["persona"]
         PROFILES[persona["person_id"]] = Profile(
-            person_id=persona["person_id"], name=persona["person_name"], family_names=persona["family"]
+            person_id=persona["person_id"], name=persona["person_name"], family_names=persona["family"],
+            caregivers=persona.get("caregivers", []),
         )
     except (OSError, KeyError, ValueError):
         pass
@@ -72,7 +90,13 @@ _load_default_profile()
 
 
 def profile(person_id: str) -> Profile:
-    return PROFILES.get(person_id) or Profile(person_id=person_id)
+    if person_id in PROFILES:
+        return PROFILES[person_id]
+    account = auth.account_for_person(person_id)  # families that signed up
+    if account:
+        return Profile(person_id=person_id, name=account.person_name, family_names=account.family_names,
+                       caregivers=account.caregivers)
+    return Profile(person_id=person_id)
 
 
 @app.get("/health")
@@ -96,15 +120,23 @@ def put_person(person_id: str, body: Profile) -> Profile:
 # ---------------------------------------------------------------------------
 class ChatRequest(BaseModel):
     person_id: str
-    message: str
+    message: str = ""
+    # The web screen sends `text`, and runs the evening call through here with mode="evening".
+    text: str = ""
+    mode: str = "chat"  # "chat" | "evening"
+    turn: int = 0  # evening: how many Dory lines were already said
 
 
 @app.post("/chat", dependencies=secured)
 def post_chat(body: ChatRequest) -> dict:
+    if body.mode == "evening":
+        return compat.evening_chat(body.person_id, body.text, body.turn)
     p = profile(body.person_id)
-    if not body.message.strip():
+    message = (body.message or body.text).strip()
+    if not message:
         raise HTTPException(status_code=400, detail="message is empty")
-    return chat(body.person_id, body.message, person_name=p.name, family_names=p.family_names).model_dump(mode="json")
+    result = chat(body.person_id, message, person_name=p.name, family_names=p.family_names)
+    return {**result.model_dump(mode="json"), **compat.chat_extras(body.person_id, result)}
 
 
 class EveningRequest(BaseModel):
@@ -173,7 +205,10 @@ class FamilyAnswer(BaseModel):
 
 
 @app.post("/questions/{question_id}/answer", dependencies=secured)
-def answer_question(question_id: int, body: FamilyAnswer) -> dict:
+def answer_question(question_id: int, body: FamilyAnswer, request: Request) -> dict:
+    person_id = auth.person_of(request, None)
+    if person_id and not any(q["id"] == question_id for q in get_db().list_questions(person_id)):
+        raise HTTPException(status_code=404, detail="No such question")  # another family's question
     try:
         fact_id = get_db().record_family_answer(question_id, body.answer, body.answered_by)
     except KeyError:
