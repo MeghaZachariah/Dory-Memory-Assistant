@@ -12,6 +12,9 @@ class DorySettings {
     required this.evening,
     required this.morning,
     required this.callsEnabled,
+    required this.useFamilyVoice,
+    required this.sessionToken,
+    required this.accountEmail,
   });
 
   /// e.g. http://192.168.1.20:8000 (your laptop on the same Wi-Fi) or the hosted https URL.
@@ -28,6 +31,14 @@ class DorySettings {
   TimeOfDay morning;
   bool callsEnabled;
 
+  /// Speak in the recorded family voice (Settings → Family voice). Falls back to the phone voice.
+  bool useFamilyVoice;
+
+  /// Set by signing in (the family's account). Sent as "Authorization: Bearer ...".
+  String sessionToken;
+  String accountEmail;
+  bool get signedIn => sessionToken.isNotEmpty;
+
   static Future<DorySettings> load() async {
     final p = await SharedPreferences.getInstance();
     return DorySettings(
@@ -39,6 +50,9 @@ class DorySettings {
       evening: TimeOfDay(hour: p.getInt('eveningHour') ?? 20, minute: p.getInt('eveningMinute') ?? 0),
       morning: TimeOfDay(hour: p.getInt('morningHour') ?? 8, minute: p.getInt('morningMinute') ?? 0),
       callsEnabled: p.getBool('callsEnabled') ?? true,
+      useFamilyVoice: p.getBool('useFamilyVoice') ?? false,
+      sessionToken: p.getString('sessionToken') ?? '',
+      accountEmail: p.getString('accountEmail') ?? '',
     );
   }
 
@@ -54,5 +68,8 @@ class DorySettings {
     await p.setInt('morningHour', morning.hour);
     await p.setInt('morningMinute', morning.minute);
     await p.setBool('callsEnabled', callsEnabled);
+    await p.setBool('useFamilyVoice', useFamilyVoice);
+    await p.setString('sessionToken', sessionToken);
+    await p.setString('accountEmail', accountEmail);
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -9,6 +10,11 @@ class DoryApiException implements Exception {
   final String message;
   @override
   String toString() => message;
+}
+
+/// The session ended (signed out elsewhere, or expired): the app goes back to the login screen.
+class DoryAuthException extends DoryApiException {
+  DoryAuthException(super.message);
 }
 
 class ChatReply {
@@ -35,6 +41,7 @@ class DoryApi {
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
         if (settings.token.isNotEmpty) 'X-Dory-Token': settings.token,
+        if (settings.sessionToken.isNotEmpty) 'Authorization': 'Bearer ${settings.sessionToken}',
       };
 
   Uri _url(String path, [Map<String, String>? query]) =>
@@ -47,10 +54,53 @@ class DoryApi {
     } catch (e) {
       throw DoryApiException('Could not reach the Dory server at ${settings.serverUrl} ($e)');
     }
+    if (res.statusCode == 401) throw DoryAuthException(_detail(res) ?? 'Please sign in again');
     if (res.statusCode != 200) {
-      throw DoryApiException('Server error ${res.statusCode}: ${res.body}');
+      throw DoryApiException(_detail(res) ?? 'Server error ${res.statusCode}');
     }
     return jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+  }
+
+  /// The server's own explanation ({"detail": "..."}), if it sent one.
+  String? _detail(http.Response res) {
+    try {
+      return (jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>)['detail']?.toString();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // --- Family account ---------------------------------------------------------
+
+  /// Signs in with the family's account (made on the Dory website). Returns the session
+  /// token and the account: {email, person_id, person_name, family_names, caregivers}.
+  Future<(String, Map<String, dynamic>)> login(String email, String password) async {
+    final http.Response res;
+    try {
+      res = await http
+          .post(
+            _url('/auth/login'),
+            headers: _headers,
+            body: jsonEncode({'email': email.trim(), 'password': password, 'device': 'Dory phone app'}),
+          )
+          .timeout(_timeout);
+    } catch (e) {
+      throw DoryApiException('Could not reach the Dory server at ${settings.serverUrl}. Check the address and Wi-Fi.');
+    }
+    if (res.statusCode != 200) throw DoryApiException(_detail(res) ?? 'Could not sign in (${res.statusCode})');
+    final d = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+    return (d['token'] as String, d['account'] as Map<String, dynamic>);
+  }
+
+  /// The signed-in account. Throws DoryAuthException if the session has ended.
+  Future<Map<String, dynamic>> me() => _send(http.get(_url('/auth/me'), headers: _headers));
+
+  Future<void> logout() async {
+    try {
+      await http.post(_url('/auth/logout'), headers: _headers).timeout(const Duration(seconds: 5));
+    } catch (_) {
+      // Signing out on the phone works even when the server can't be reached.
+    }
   }
 
   Future<bool> health() async {
@@ -94,4 +144,58 @@ class DoryApi {
     final d = await _send(http.get(_url('/briefing/${settings.personId}'), headers: _headers));
     return d['text'] as String? ?? '';
   }
+
+  // --- Family voice (optional) ------------------------------------------------
+
+  Future<FamilyVoiceStatus> voiceStatus() async =>
+      FamilyVoiceStatus.fromJson(await _send(http.get(_url('/voice/${settings.personId}'), headers: _headers)));
+
+  /// Uploads the family member's recording (WAV). They must have agreed to it.
+  Future<FamilyVoiceStatus> uploadVoice(Uint8List wav, String speakerName) async {
+    final res = await http
+        .put(
+          _url('/voice/${settings.personId}', {'speaker_name': speakerName, 'consent': 'true'}),
+          headers: {..._headers, 'Content-Type': 'audio/wav'},
+          body: wav,
+        )
+        .timeout(const Duration(seconds: 90));
+    if (res.statusCode != 200) {
+      final detail = (jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>)['detail'];
+      throw DoryApiException(detail?.toString() ?? 'Server error ${res.statusCode}');
+    }
+    return FamilyVoiceStatus.fromJson(jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>);
+  }
+
+  Future<void> deleteVoice() async {
+    await _send(http.delete(_url('/voice/${settings.personId}'), headers: _headers));
+  }
+
+  /// [text] spoken in the family voice, as WAV bytes. Null on any problem: use the phone voice.
+  Future<Uint8List?> speakAsFamily(String text) async {
+    try {
+      final res = await http
+          .post(
+            _url('/voice/${settings.personId}/speak'),
+            headers: _headers,
+            body: jsonEncode({'text': text, 'locale': settings.locale}),
+          )
+          .timeout(const Duration(seconds: 20));
+      return res.statusCode == 200 ? res.bodyBytes : null;
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+class FamilyVoiceStatus {
+  FamilyVoiceStatus({required this.enabled, required this.speakerName, required this.serverOnline});
+  final bool enabled;
+  final String? speakerName;
+  final bool serverOnline;
+
+  factory FamilyVoiceStatus.fromJson(Map<String, dynamic> d) => FamilyVoiceStatus(
+        enabled: d['enabled'] as bool? ?? false,
+        speakerName: d['speaker_name'] as String?,
+        serverOnline: d['server_online'] as bool? ?? false,
+      );
 }

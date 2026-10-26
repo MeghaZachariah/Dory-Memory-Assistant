@@ -11,8 +11,7 @@ import 'settings.dart';
 /// What a call is for. Stored in the call's `extra` so the app knows what to do on "Answer".
 enum CallMode { evening, briefing, ask }
 
-CallMode callModeFrom(Object? value) =>
-    CallMode.values.firstWhere((m) => m.name == value, orElse: () => CallMode.ask);
+CallMode callModeFrom(Object? value) => CallMode.values.firstWhere((m) => m.name == value, orElse: () => CallMode.ask);
 
 const int eveningAlarmId = 101;
 const int morningAlarmId = 102;
@@ -71,11 +70,11 @@ Future<void> showDoryCall(CallMode mode) async {
   await FlutterCallkitIncoming.showCallkitIncoming(params);
 }
 
-/// Sets (or clears) the daily evening and morning calls from the settings.
+/// Sets (or clears) the daily evening and morning calls from the settings. No calls while signed out.
 Future<void> scheduleDailyCalls(DorySettings s) async {
   await AndroidAlarmManager.cancel(eveningAlarmId);
   await AndroidAlarmManager.cancel(morningAlarmId);
-  if (!s.callsEnabled) return;
+  if (!s.callsEnabled || !s.signedIn) return;
   await AndroidAlarmManager.periodic(
     const Duration(days: 1),
     eveningAlarmId,
