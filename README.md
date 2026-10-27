@@ -104,3 +104,176 @@ Patient      Family Response
                    ▼
 
            Future Answers
+
+# 🤖 AI Pipeline
+
+## Fact Extraction
+
+- Extracts structured memories from conversations
+- Preserves source quotes
+- Normalizes dates
+- Validates evidence before storage
+
+## Grounded Answering
+
+Dory only answers using:
+
+- Stored facts
+- Memory Book entries
+- Family-provided memories
+
+If evidence is missing:
+
+> "I'm not sure. Would you like me to ask your family?"
+
+## Verification Layer
+
+All answers are checked before being shown.
+
+Unsupported answers are blocked and replaced with a safe response.
+
+---
+
+# 🖥 Frontend
+
+Built with:
+
+- React
+- Vite
+- Tailwind CSS
+
+## Includes
+
+- Landing Page
+- Login & Signup
+- Patient Portal
+- Family Dashboard
+- Telegram Assistant Center
+
+---
+
+# ⚙ Backend
+
+Built with:
+
+- FastAPI
+- Python
+- SQLite / PostgreSQL
+
+## Authentication Includes
+
+- Login
+- Signup
+- Session Management
+- Family Account Linking
+
+---
+
+# 📱 Telegram Bot
+
+## Supported Commands
+
+```text
+/start
+/join
+/pending
+/summary
+/briefing
+/gave
+```
+
+## Used For
+
+- Family responses
+- Medication logging
+- Question escalation
+- Status notifications
+
+---
+
+# 🧪 Safety Principles
+
+## Dory Will Never
+
+❌ Invent memories
+
+❌ Guess medication instructions
+
+❌ Answer without evidence
+
+❌ Override caregiver-confirmed records
+
+## Dory Will Always
+
+✅ Answer using verified facts
+
+✅ Cite memory sources
+
+✅ Ask family when uncertain
+
+✅ Escalate medication questions safely
+
+---
+
+# 🚀 Running the Project
+
+## Backend
+
+```bash
+pip install -r backend/requirements.txt
+
+uvicorn backend.api.main:app --reload --port 8000
+```
+
+## Frontend
+
+```bash
+cd Frontend
+
+npm install
+
+npm run dev
+```
+
+## Telegram Bot
+
+```bash
+cd backend/bot
+
+python bot.py
+```
+
+---
+
+# 🔒 Important Disclaimer
+
+Dory is a memory aid and family communication tool.
+
+It is **not**:
+
+- A medical device
+- A diagnostic tool
+- A treatment platform
+
+The project is designed to support people with early memory loss and their families by improving communication, memory recall, and safety.
+
+---
+
+# 👥 Team
+
+Built for the **NVIDIA × Nebius Hackathon**.
+
+## Project Vision
+
+> **"What must an AI never say?"**
+
+Dory is designed around trust, verification, and safe uncertainty.
+
+Instead of guessing, Dory either provides a verified answer or asks the family for help.
+
+Every answer should be:
+
+- Explainable
+- Traceable
+- Grounded in evidence
+- Safe for memory-care scenarios
