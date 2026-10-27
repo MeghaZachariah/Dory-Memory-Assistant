@@ -18,3 +18,5 @@ db/dory.db
 .env
 .pytest_cache/
 backend/ai/logs/
+# Old frontend backup
+Frontend_backup/
