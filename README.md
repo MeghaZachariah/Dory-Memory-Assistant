@@ -105,6 +105,7 @@ Patient      Family Response
 
            Future Answers
 
+---
 # 🤖 AI Pipeline
 
 ## Fact Extraction
