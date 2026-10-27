@@ -104,9 +104,11 @@ Patient      Family Response
                    ▼
 
            Future Answers
+```
 
+---
 
-## 🤖 AI Pipeline
+# 🤖 AI Pipeline
 
 ## Fact Extraction
 
@@ -151,6 +153,25 @@ Built with:
 - Family Dashboard
 - Telegram Assistant Center
 
+### Patient Portal
+
+- Voice-first interaction
+- Morning briefing
+- Evening check-in
+- Recent memories view
+- Accessibility-focused design
+- Real-time family response status
+
+### Family Dashboard
+
+- Today's summary
+- Memory receipts
+- Questions and responses
+- Memory Book management
+- Medication logs
+- Dory Answers audit trail
+- Telegram workflow monitoring
+
 ---
 
 # ⚙ Backend
@@ -167,6 +188,15 @@ Built with:
 - Signup
 - Session Management
 - Family Account Linking
+
+## Core Services
+
+- Fact Extraction Engine
+- Grounded Answer Generation
+- Verification Layer
+- Memory Storage
+- API Gateway
+- Family Escalation Logic
 
 ---
 
@@ -190,6 +220,40 @@ Built with:
 - Question escalation
 - Status notifications
 
+## Telegram Workflow
+
+```text
+Patient asks question
+          │
+          ▼
+
+Dory cannot answer
+          │
+          ▼
+
+Pending question created
+          │
+          ▼
+
+Telegram notification sent
+          │
+          ▼
+
+Family member replies
+          │
+          ▼
+
+Answer verified and stored
+          │
+          ▼
+
+Memory becomes available
+          │
+          ▼
+
+Dory can answer next time
+```
+
 ---
 
 # 🧪 Safety Principles
@@ -204,6 +268,8 @@ Built with:
 
 ❌ Override caregiver-confirmed records
 
+❌ Speculate about health conditions
+
 ## Dory Will Always
 
 ✅ Answer using verified facts
@@ -213,6 +279,31 @@ Built with:
 ✅ Ask family when uncertain
 
 ✅ Escalate medication questions safely
+
+✅ Record memory provenance
+
+✅ Maintain answer traceability
+
+---
+
+# 🔐 Trust Through Verification
+
+Dory's design is based on a simple principle:
+
+> **Every answer should be explainable.**
+
+Unlike traditional chatbots, Dory uses:
+
+1. Stored memory facts
+2. Family-provided information
+3. Caregiver-confirmed records
+4. Verification checks before responding
+
+If Dory cannot verify an answer, it prefers saying:
+
+> "I'm not sure. Would you like me to ask your family?"
+
+rather than risking misinformation.
 
 ---
 
@@ -226,6 +317,8 @@ pip install -r backend/requirements.txt
 uvicorn backend.api.main:app --reload --port 8000
 ```
 
+---
+
 ## Frontend
 
 ```bash
@@ -236,12 +329,80 @@ npm install
 npm run dev
 ```
 
+---
+
 ## Telegram Bot
 
 ```bash
 cd backend/bot
 
 python bot.py
+```
+
+---
+
+## API Documentation
+
+After starting the backend:
+
+```text
+http://localhost:8000/docs
+```
+
+FastAPI Swagger documentation provides access to:
+
+- Authentication endpoints
+- Patient APIs
+- Dashboard APIs
+- Memory management APIs
+- Verification endpoints
+
+---
+
+# 📋 Example User Journey
+
+## Known Memory
+
+```text
+Patient:
+"Who visited yesterday?"
+
+Dory:
+"Your daughter Sara visited yesterday afternoon."
+
+Source:
+Verified Memory
+```
+
+## Unknown Memory
+
+```text
+Patient:
+"When was my wedding?"
+
+Dory:
+"I'm not sure. Would you like me to ask your family?"
+```
+
+```text
+Telegram Notification
+        ↓
+Family Response
+        ↓
+Memory Stored
+        ↓
+Future Questions Answered
+```
+
+## Medication Question
+
+```text
+Patient:
+"Did I take my medicine?"
+
+Dory:
+"I can't verify medication information from memory.
+I'll check your caregiver-confirmed records."
 ```
 
 ---
@@ -255,6 +416,7 @@ It is **not**:
 - A medical device
 - A diagnostic tool
 - A treatment platform
+- A replacement for professional healthcare advice
 
 The project is designed to support people with early memory loss and their families by improving communication, memory recall, and safety.
 
@@ -268,13 +430,17 @@ Built for the **NVIDIA × Nebius Hackathon**.
 
 > **"What must an AI never say?"**
 
-Dory is designed around trust, verification, and safe uncertainty.
+Most AI assistants focus on what they can answer.
 
-Instead of guessing, Dory either provides a verified answer or asks the family for help.
+Dory focuses on what it should refuse to answer.
 
-Every answer should be:
+By combining grounded memory retrieval, family verification, caregiver oversight, and answer validation, Dory prioritizes trust, transparency, and safety for people living with early memory loss.
+
+### Every Answer Should Be
 
 - Explainable
 - Traceable
 - Grounded in evidence
 - Safe for memory-care scenarios
+- Supported by verified information
+- Accountable to families and caregivers
