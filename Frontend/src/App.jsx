@@ -1,325 +1,136 @@
-import { useRef, useState } from "react";
-import { PERSON_ID, PERSON_NAME } from "./config";
-import { chat, finishEvening, getBriefing, resetDemo } from "./api";
-import { useSpeech } from "./useSpeech";
+import { createRoot } from 'react-dom/client';
+import { useState } from 'react';
+import {
+  ArrowDownRight,
+  ArrowRight,
+  Bell,
+  BookOpen,
+  BrainCircuit,
+  Check,
+  CheckCircle2,
+  ChevronRight,
+  CircleAlert,
+  CircleCheck,
+  Clock3,
+  FileCheck2,
+  GitBranch,
+  HeartHandshake,
+  LockKeyhole,
+  MessageCircle,
+  MessageCircleQuestion,
+  Mic2,
+  Pill,
+  Play,
+  Quote,
+  ShieldCheck,
+  Sparkles,
+  UsersRound,
+  X,
+} from 'lucide-react';
+import '../styles.css';
+import AuthenticatedApp from './AuthenticatedApp.jsx';
 
-// Add ?demo=1 to the address to show the demo buttons (hidden for the person).
-const DEMO = new URLSearchParams(window.location.search).get("demo") === "1";
-
-const STATUS_TEXT = {
-  idle: "Ready when you are",
-  listening: "I'm listening",
-  thinking: "Let me think",
-  speaking: "Dory is speaking",
-  typing: "Type your answer below",
-};
-
-const OFFLINE_REPLY =
-  "I can't reach my notes right now. Please ask your family to help, and try again in a moment.";
-
-function listenMessage(code) {
-  switch (code) {
-    case "not-allowed":
-    case "service-not-allowed":
-      return "Dory needs your microphone. Allow it in the browser, or type below.";
-    case "no-speech":
-      return "I didn't hear anything. Tap the big button and try again.";
-    case "unsupported":
-      return "Voice doesn't work in this browser. Please type below.";
-    default:
-      return "I couldn't hear that. Tap the big button to try again, or type below.";
-  }
-}
-
-const dateLine = () =>
-  new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric" }).format(
-    new Date()
-  );
-
-function MicIcon() {
+function Logo({ light = true }) {
   return (
-    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor" />
-      <path
-        d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
+    <a href="#top" className="group flex items-center gap-3" aria-label="Dory home">
+      <span className="relative flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/15 bg-white/10 text-[#73e5c4] shadow-[0_8px_30px_rgba(65,210,179,.15)] backdrop-blur-xl transition duration-300 group-hover:rotate-[-6deg] group-hover:bg-white/15">
+        <BrainCircuit size={22} strokeWidth={1.7} />
+        <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-[#081b2c] bg-[#f1c86e]" />
+      </span>
+      <span>
+        <span className={`block font-display text-[1.55rem] font-semibold leading-none tracking-[-.05em] ${light ? 'text-white' : 'text-[#10283a]'}`}>Dory</span>
+        <span className={`mt-1 block text-[9px] font-bold uppercase tracking-[.24em] ${light ? 'text-[#90aeb4]' : 'text-[#71868d]'}`}>Memory, made gentle</span>
+      </span>
+    </a>
   );
 }
 
-export default function App() {
-  const speech = useSpeech();
-  const [phase, setPhase] = useState("idle"); // idle | listening | thinking | speaking | typing
-  const [mode, setMode] = useState("chat"); // chat | evening
-  const [heard, setHeard] = useState("");
-  const [notice, setNotice] = useState("");
-  const [typed, setTyped] = useState("");
-  const [reply, setReply] = useState({
-    text: `Hello, ${PERSON_NAME}. Tap the big button and talk to me.`,
-    status: "greeting",
-    sources: [],
-  });
+function Eyebrow({ children, light = false }) {
+  return <div className={`flex items-center gap-2 text-[11px] font-bold uppercase tracking-[.2em] ${light ? 'text-[#82e4c6]' : 'text-[#499f88]'}`}><span className="h-1.5 w-1.5 rounded-full bg-current" />{children}</div>;
+}
 
-  const typedResolver = useRef(null); // set while the evening chat waits for typed text
-  const cancelled = useRef(false);
-
-  // ----- speaking -----
-  async function say(text) {
-    setPhase("speaking");
-    await speech.speak(text);
-    setPhase("idle");
-  }
-
-  async function showReply(res) {
-    setReply({
-      text: res.reply,
-      status: res.status,
-      sources: res.sources || [],
-    });
-    await say(res.reply);
-  }
-
-  async function showOffline() {
-    setReply({ text: OFFLINE_REPLY, status: "offline", sources: [] });
-    await say(OFFLINE_REPLY);
-  }
-
-  // ----- one question and answer -----
-  async function ask(text) {
-    setNotice("");
-    setHeard(text);
-    setPhase("thinking");
-    try {
-      const res = await chat({ person_id: PERSON_ID, text, mode: "chat" });
-      await showReply(res);
-    } catch {
-      await showOffline();
-    }
-  }
-
-  async function talk() {
-    if (phase === "listening") return speech.stopListening();
-    if (phase === "speaking") {
-      speech.stopSpeaking();
-      return setPhase("idle");
-    }
-    if (phase !== "idle" || mode === "evening") return;
-
-    setNotice("");
-    setHeard("");
-    setPhase("listening");
-    try {
-      const text = await speech.listen(setHeard);
-      await ask(text);
-    } catch (e) {
-      setPhase("idle");
-      setNotice(listenMessage(e.code));
-    }
-  }
-
-  // ----- evening check-in -----
-  function getAnswer() {
-    if (speech.supported.listen) {
-      setPhase("listening");
-      return speech.listen(setHeard);
-    }
-    setPhase("typing"); // browsers without voice recognition: wait for typed text
-    return new Promise((resolve) => {
-      typedResolver.current = resolve;
-    });
-  }
-
-  async function runEvening() {
-    if (phase !== "idle") return;
-    cancelled.current = false;
-    setMode("evening");
-    setNotice("");
-    setHeard("");
-
-    const transcript = [];
-    let turn = 0;
-    let text = "";
-    try {
-      while (true) {
-        setPhase("thinking");
-        const res = await chat({ person_id: PERSON_ID, text, mode: "evening", turn });
-        transcript.push({ role: "dory", text: res.reply });
-        setReply({ text: res.reply, status: "evening", sources: [] });
-        await say(res.reply);
-        if (res.done || cancelled.current) break;
-
-        let answer;
-        try {
-          answer = await getAnswer();
-        } catch (e) {
-          if (!cancelled.current) setNotice(listenMessage(e.code));
-          break;
-        }
-        if (cancelled.current || !answer) break;
-        setHeard(answer);
-        transcript.push({ role: "person", text: answer });
-        turn += 1;
-        text = answer;
-      }
-      if (transcript.some((line) => line.role === "person")) {
-        await finishEvening({ person_id: PERSON_ID, transcript });
-      }
-    } catch {
-      await showOffline();
-    } finally {
-      setMode("chat");
-      setPhase("idle");
-    }
-  }
-
-  function stopEvening() {
-    cancelled.current = true;
-    speech.stopAll();
-    if (typedResolver.current) {
-      typedResolver.current("");
-      typedResolver.current = null;
-    }
-  }
-
-  // ----- morning briefing -----
-  async function playBriefing() {
-    if (phase !== "idle" || mode !== "chat") return;
-    setNotice("");
-    setHeard("");
-    setPhase("thinking");
-    try {
-      const res = await getBriefing(PERSON_ID);
-      setReply({ text: res.text, status: "briefing", sources: res.sources || [] });
-      await say(res.text);
-    } catch {
-      await showOffline();
-    }
-  }
-
-  // ----- typed text (backup for voice) -----
-  function submitTyped(event) {
-    event.preventDefault();
-    const text = typed.trim();
-    if (!text) return;
-    setTyped("");
-    if (typedResolver.current) {
-      const resolve = typedResolver.current;
-      typedResolver.current = null;
-      resolve(text);
-    } else if (phase === "idle" && mode === "chat") {
-      ask(text);
-    }
-  }
-
-  async function reset() {
-    stopEvening();
-    try {
-      await resetDemo();
-    } catch {
-      /* ignore */
-    }
-    setReply({
-      text: `Hello, ${PERSON_NAME}. Tap the big button and talk to me.`,
-      status: "greeting",
-      sources: [],
-    });
-    setHeard("");
-    setNotice("Demo reset.");
-  }
-
-  const talkLabel =
-    phase === "listening"
-      ? "I'm listening"
-      : phase === "speaking"
-      ? "Tap to stop"
-      : phase === "thinking"
-      ? "One moment"
-      : "Talk to Dory";
-  const talkDisabled =
-    phase === "thinking" || phase === "typing" || (mode === "evening" && phase !== "listening");
-  const firstSource = reply.sources?.find((s) => s.label);
-
+function ConversationCard() {
   return (
-    <main className="screen" data-phase={phase}>
-      <header className="top">
-        <span className="wordmark">Dory</span>
-        <time className="today">{dateLine()}</time>
-      </header>
-
-      <section className="stage" aria-hidden="false">
-        <div className="orb" data-phase={phase} aria-hidden="true">
-          <span className="ring" />
-          <span className="ring" />
-          <span className="ring" />
-          <span className="core" />
+    <div className="motion-float relative mx-auto w-full max-w-[535px] lg:mr-0">
+      <div className="absolute -inset-8 rounded-[48px] bg-[radial-gradient(circle_at_50%_50%,rgba(70,211,175,.2),transparent_62%)] blur-2xl" />
+      <div className="relative overflow-hidden rounded-[30px] border border-white/15 bg-[#102d3b]/90 p-3 shadow-[0_30px_100px_rgba(0,0,0,.35)] backdrop-blur-2xl sm:p-4">
+        <div className="flex items-center justify-between border-b border-white/10 px-3 pb-3">
+          <div className="flex items-center gap-2.5"><div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#72e4c3] text-[#092231]"><BrainCircuit size={17} /></div><div><div className="text-xs font-bold text-white">Dory</div><div className="text-[10px] font-semibold text-[#8ca8ae]">Your trusted memory companion</div></div></div>
+          <div className="flex items-center gap-1.5 rounded-full border border-[#63d5b4]/20 bg-[#63d5b4]/10 px-2.5 py-1.5 text-[10px] font-bold text-[#7ee5c5]"><span className="h-1.5 w-1.5 rounded-full bg-[#79e5c5]" /> Online</div>
         </div>
-        <p className="status">{STATUS_TEXT[phase]}</p>
-      </section>
-
-      <section className="words" data-status={reply.status} aria-live="polite">
-        {heard && phase !== "idle" && <p className="heard">You said: {heard}</p>}
-        <p className="reply">{reply.text}</p>
-        {firstSource && <p className="because">{firstSource.label}</p>}
-        {reply.status === "unknown" && <p className="chip">Waiting for your family</p>}
-        {reply.status === "refused" && <p className="chip">Checked with your caregiver's notes</p>}
-        {notice && (
-          <p className="notice" role="status">
-            {notice}
-          </p>
-        )}
-      </section>
-
-      <section className="controls">
-        <button
-          className="talk"
-          data-phase={phase}
-          onClick={talk}
-          disabled={talkDisabled || !speech.supported.listen}
-          aria-label={talkLabel}
-        >
-          <MicIcon />
-          <span>{talkLabel}</span>
-        </button>
-
-        <form className="type" onSubmit={submitTyped}>
-          <label htmlFor="typed">
-            {speech.supported.listen ? "Or type here" : "Voice is not available. Type here"}
-          </label>
-          <div className="type-row">
-            <input
-              id="typed"
-              value={typed}
-              onChange={(e) => setTyped(e.target.value)}
-              autoComplete="off"
-              placeholder="Type a question"
-            />
-            <button type="submit" className="send">
-              Send
-            </button>
-          </div>
-        </form>
-
-        {mode === "evening" && (
-          <button className="plain" onClick={stopEvening}>
-            Done for now
-          </button>
-        )}
-
-        {DEMO && (
-          <div className="demo">
-            <button onClick={runEvening} disabled={phase !== "idle"}>
-              Start evening chat
-            </button>
-            <button onClick={playBriefing} disabled={phase !== "idle" || mode !== "chat"}>
-              Play morning briefing
-            </button>
-            <button onClick={reset}>Reset demo</button>
-          </div>
-        )}
-      </section>
-    </main>
+        <div className="space-y-3 p-3 sm:space-y-4 sm:p-4">
+          <div className="flex justify-end"><div className="max-w-[78%] rounded-[20px] rounded-br-md bg-[#214b59] px-4 py-3 text-sm leading-5 text-[#e5f6f2] shadow-lg">Who visited yesterday?</div></div>
+          <div className="flex items-end gap-2.5"><div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#d9f7ed] text-[#1c7864]"><Sparkles size={15} /></div><div className="max-w-[84%] rounded-[20px] rounded-bl-md border border-white/10 bg-white/[.07] px-4 py-3.5 text-sm leading-6 text-white shadow-lg sm:text-[15px]">Dory answered from a verified family memory.</div></div>
+          <div className="ml-10 flex flex-wrap items-center gap-2 border-t border-white/10 pt-3"><span className="inline-flex items-center gap-1.5 rounded-full border border-[#62d8b4]/25 bg-[#62d8b4]/10 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[.13em] text-[#82e4c6]"><CheckCircle2 size={12} /> Verified</span><span className="text-[10px] font-semibold text-[#78959d]">Source: Yesterday’s family note · 4:42 PM</span></div>
+        </div>
+        <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#0b2433] px-3 py-3"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#173d49] text-[#78dfc1]"><Mic2 size={17} /></div><div className="flex-1"><div className="mb-1.5 h-1.5 w-24 rounded-full bg-[#53cfaa]/70" /><div className="h-1.5 w-36 rounded-full bg-white/10" /></div><span className="text-[10px] font-bold uppercase tracking-[.13em] text-[#6c9096]">Ask Dory</span></div>
+      </div>
+      <div className="absolute -bottom-5 -left-4 hidden items-center gap-2 rounded-2xl border border-white/15 bg-[#153849]/95 px-3.5 py-3 shadow-xl backdrop-blur-xl sm:flex"><div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#f1ce7a] text-[#5c471d]"><ShieldCheck size={16} /></div><div><div className="text-[10px] font-bold uppercase tracking-[.14em] text-[#7fa5a8]">Grounded answer</div><div className="mt-0.5 text-xs font-semibold text-white">Every answer has a source.</div></div></div>
+    </div>
   );
 }
+
+function Stat({ children, icon: Icon }) {
+  return <div className="motion-card motion-rise flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[.055] px-4 py-3 backdrop-blur-xl"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#65d7b7]/10 text-[#7de3c5]"><Icon size={17} /></span><span className="text-sm font-semibold leading-5 text-[#d6e7e6]">{children}</span></div>;
+}
+
+const features = [
+  { icon: FileCheck2, title: 'Answers With Receipts', copy: 'Dory connects every answer to a memory, note, or confirmation your family can trust.', tint: 'teal', metric: '100% source-aware' },
+  { icon: UsersRound, title: 'Family Connected', copy: 'When confidence runs low, Dory asks the people who know best — without making a guess.', tint: 'gold', metric: 'Trusted circle, always' },
+  { icon: Pill, title: 'Medication Safe', copy: 'Medication questions are never answered from memory. Dory pauses and brings in family.', tint: 'rose', metric: 'Zero unsafe guesses' },
+];
+
+const steps = [
+  { icon: MessageCircle, step: '01', title: 'Evening Chat', copy: 'A gentle conversation captures the moments that mattered today.' },
+  { icon: Sparkles, step: '02', title: 'Fact Extraction', copy: 'Dory turns natural conversation into clear, useful facts.' },
+  { icon: BookOpen, step: '03', title: 'Memory Storage', copy: 'Important details are saved with their original source.' },
+  { icon: ShieldCheck, step: '04', title: 'Verified Response', copy: 'Answers come only from facts that pass the checker.' },
+  { icon: MessageCircleQuestion, step: '05', title: 'Ask Family', copy: 'Uncertainty becomes a thoughtful question — never a hallucination.' },
+];
+
+function FeatureCard({ feature }) {
+  const Icon = feature.icon;
+  const tint = { teal: 'bg-[#dff8ee] text-[#308c73]', gold: 'bg-[#fff0c9] text-[#a87825]', rose: 'bg-[#ffe5e1] text-[#b76159]' }[feature.tint];
+  return <article className="motion-card reveal-on-scroll group rounded-[25px] border border-[#dceae5] bg-white p-6 shadow-[0_15px_50px_rgba(27,67,70,.06)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_22px_60px_rgba(27,67,70,.12)]"><div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${tint} transition duration-300 group-hover:rotate-[-5deg]`}><Icon size={22} strokeWidth={1.8} /></div><h3 className="mt-6 text-xl font-bold tracking-[-.025em] text-[#123141]">{feature.title}</h3><p className="mt-3 text-sm leading-6 text-[#70888a]">{feature.copy}</p><div className="mt-6 flex items-center gap-2 border-t border-[#edf3f0] pt-4 text-[10px] font-bold uppercase tracking-[.15em] text-[#65998b]"><Check size={13} /> {feature.metric}</div></article>;
+}
+
+function ProductPreview() {
+  const [view, setView] = useState('patient');
+  return <section id="product" className="reveal-on-scroll mx-auto max-w-7xl px-5 py-24 sm:px-8 lg:px-10"><div className="mb-10 flex flex-col justify-between gap-6 md:flex-row md:items-end"><div><Eyebrow>See Dory in action</Eyebrow><h2 className="mt-4 max-w-2xl font-display text-4xl leading-[1.05] tracking-[-.045em] text-[#123141] sm:text-5xl">A calm loop between a person, their memory, and their people.</h2></div><div className="flex w-fit rounded-2xl border border-[#d8e8e2] bg-[#f4faf7] p-1"><button type="button" onClick={() => setView('patient')} className={`rounded-xl px-3.5 py-2 text-xs font-bold transition ${view === 'patient' ? 'bg-white text-[#205e55] shadow-sm' : 'text-[#76908e]'}`}>Patient screen</button><button type="button" onClick={() => setView('family')} className={`rounded-xl px-3.5 py-2 text-xs font-bold transition ${view === 'family' ? 'bg-white text-[#205e55] shadow-sm' : 'text-[#76908e]'}`}>Family view</button></div></div>
+    {view === 'patient' ? <div className="grid gap-5 lg:grid-cols-[.9fr_1.1fr_1fr] lg:items-center"><div className="rounded-[28px] border border-[#d8e8e2] bg-[#f4faf7] p-4 shadow-[0_15px_50px_rgba(27,67,70,.05)] sm:p-5"><div className="mx-auto max-w-[280px] rounded-[29px] border-[7px] border-[#183a42] bg-[#e9f6f0] p-3 shadow-2xl"><div className="mx-auto mb-5 h-1 w-16 rounded-full bg-[#b7d9ca]" /><div className="flex items-center justify-between px-1 text-[10px] font-bold text-[#62807c]"><span>9:41</span><span className="flex gap-1"><span className="h-1.5 w-1.5 rounded-full bg-[#6caf91]" /><span className="h-1.5 w-1.5 rounded-full bg-[#6caf91]" /></span></div><div className="mt-7 text-center"><div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#f3ca75] text-[#63491c] shadow-lg"><Mic2 size={29} /></div><div className="mt-4 text-sm font-bold text-[#284a4e]">Tap to talk to Dory</div><div className="mt-1 text-[10px] text-[#7c9692]">I’m here whenever you need me.</div></div><div className="mt-8 rounded-2xl bg-white p-3 shadow-sm"><div className="text-[9px] font-bold uppercase tracking-[.15em] text-[#80a095]">Dory says</div><div className="mt-2 text-xs font-semibold leading-5 text-[#34565a]">Dory pauses when a verified answer is unavailable.</div><div className="mt-3 flex items-center gap-1.5 text-[9px] font-bold text-[#ab7d2c]"><CircleAlert size={12} /> No verified fact found</div></div></div></div><div className="hidden h-px bg-[#b9d8cb] lg:block" /><div className="space-y-4"><div className="rounded-[25px] border border-[#dceae5] bg-white p-5 shadow-[0_15px_50px_rgba(27,67,70,.06)]"><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#e9dffc] text-[#8067a8]"><Bell size={18} /></div><div><div className="text-[10px] font-bold uppercase tracking-[.15em] text-[#93a4a2]">Telegram · family circle</div><div className="mt-1 text-sm font-bold text-[#27464e]">Dory needs a little help.</div></div></div><p className="mt-4 rounded-xl bg-[#f7faf8] px-3 py-2.5 text-sm leading-5 text-[#6c8586]">“Dory asked the family to confirm an unknown detail.”</p><div className="mt-3 flex items-center gap-2 text-[11px] font-bold text-[#8067a8]"><Clock3 size={13} /> Family notified · just now</div></div><div className="rounded-[25px] border border-[#dceae5] bg-[#123141] p-5 text-white shadow-[0_15px_50px_rgba(27,67,70,.12)]"><div className="flex items-center justify-between"><div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.15em] text-[#8fbbb0]"><LayoutDots /> Family dashboard</div><span className="rounded-full bg-[#6eddbd]/15 px-2 py-1 text-[9px] font-bold text-[#82e4c6]">Updated</span></div><div className="mt-5 text-2xl font-bold tracking-[-.04em]">1 new memory</div><div className="mt-1 text-sm text-[#a4c0bd]">Family added a verified answer</div><div className="mt-5 flex items-center gap-2 rounded-xl border border-white/10 bg-white/[.06] p-3"><div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#6eddbd]/15 text-[#82e4c6]"><CheckCircle2 size={15} /></div><div className="text-xs font-semibold text-[#d9ece7]">The verified answer is now stored in memory.</div></div></div></div></div> : <div className="grid gap-5 lg:grid-cols-[1fr_1.2fr]"><div className="rounded-[28px] bg-[#123141] p-6 text-white"><div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.16em] text-[#8fbbb0]"><LayoutDots /> Family dashboard</div><h3 className="mt-8 font-display text-3xl leading-tight">Clarity for the people who care.</h3><p className="mt-4 text-sm leading-6 text-[#a4c0bd]">See the facts Dory knows, the questions it asked, and the moments that deserve a human check-in.</p><div className="mt-7 grid grid-cols-2 gap-3"><div className="rounded-2xl bg-white/[.07] p-4"><div className="text-2xl font-bold">Live</div><div className="mt-1 text-[10px] font-bold uppercase tracking-[.12em] text-[#8fbbb0]">grounded answers</div></div><div className="rounded-2xl bg-white/[.07] p-4"><div className="text-2xl font-bold">—</div><div className="mt-1 text-[10px] font-bold uppercase tracking-[.12em] text-[#8fbbb0]">unsafe guesses</div></div></div></div><div className="grid gap-4 sm:grid-cols-2"><div className="rounded-[25px] border border-[#dceae5] bg-white p-5"><div className="flex items-center justify-between"><div className="text-[10px] font-bold uppercase tracking-[.15em] text-[#93a4a2]">Saved fact</div><CircleCheck size={17} className="text-[#5aaa8d]" /></div><div className="mt-5 text-lg font-bold leading-6 text-[#27464e]">A verified family fact is ready to review.</div><div className="mt-4 rounded-xl bg-[#f4faf7] p-3 text-xs italic leading-5 text-[#6d8786]">Original source quote attached.</div></div><div className="rounded-[25px] border border-[#f0ded6] bg-[#fff8f4] p-5"><div className="flex items-center justify-between"><div className="text-[10px] font-bold uppercase tracking-[.15em] text-[#bc8c83]">Needs family</div><CircleAlert size={17} className="text-[#d37b6e]" /></div><div className="mt-5 text-lg font-bold leading-6 text-[#74443f]">Medication check-in</div><div className="mt-4 text-xs leading-5 text-[#a36c63]">Dory paused instead of guessing. A trusted person can confirm.</div></div></div></div>}
+  </section>;
+}
+
+function LayoutDots() { return <span className="flex gap-1"><span className="h-1.5 w-1.5 rounded-full bg-[#73e5c4]" /><span className="h-1.5 w-1.5 rounded-full bg-[#f1c86e]" /><span className="h-1.5 w-1.5 rounded-full bg-[#9b8fd2]" /></span>; }
+
+function App() {
+  const [showWorkflow, setShowWorkflow] = useState(false);
+  const [screen, setScreen] = useState(() => { try { return localStorage.getItem('dory_session') ? 'welcome' : 'landing'; } catch { return 'landing'; } });
+  if (screen !== 'landing') return <AuthenticatedApp initialScreen={screen} onExit={() => setScreen('landing')} />;
+  return <div id="top" className="min-h-screen overflow-hidden bg-[#f7fbf8] text-[#123141]">
+    <section className="relative isolate overflow-hidden bg-[#081c2c] text-white">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_15%,rgba(61,189,157,.18),transparent_30%),radial-gradient(circle_at_17%_32%,rgba(53,91,138,.24),transparent_32%)]" /><div className="absolute left-1/2 top-[-320px] h-[650px] w-[650px] -translate-x-1/2 rounded-full border border-white/[.06]" /><div className="absolute left-1/2 top-[-275px] h-[560px] w-[560px] -translate-x-1/2 rounded-full border border-white/[.05]" />
+      <nav className="motion-fade relative z-10 mx-auto flex max-w-7xl items-center justify-between px-5 py-5 sm:px-8 lg:px-10"><Logo /><div className="hidden items-center gap-8 text-sm font-semibold text-[#a4bdc0] md:flex"><a href="#how" className="transition hover:text-white">How it works</a><a href="#safety" className="transition hover:text-white">Safety</a><a href="#families" className="transition hover:text-white">Families</a></div><div className="flex items-center gap-3"><a href="#login" onClick={(event) => { event.preventDefault(); setScreen('login'); }} className="hidden px-3 py-2 text-sm font-semibold text-[#b8d0d0] transition hover:text-white sm:block">Login</a><a href="#get-started" onClick={(event) => { event.preventDefault(); setScreen('signup'); }} className="rounded-xl bg-[#73e5c4] px-4 py-2.5 text-sm font-bold text-[#082131] shadow-[0_8px_25px_rgba(73,215,179,.22)] transition hover:-translate-y-0.5 hover:bg-[#8eefd2]">Get started <span className="hidden sm:inline">→</span></a></div></nav>
+      <div className="relative z-10 mx-auto grid max-w-7xl items-center gap-12 px-5 pb-24 pt-14 sm:px-8 sm:pb-32 sm:pt-20 lg:grid-cols-[.93fr_1.07fr] lg:gap-16 lg:px-10 lg:pt-24"><div className="motion-rise motion-delay-1"><Eyebrow light>Memory care, reimagined</Eyebrow><h1 className="mt-6 max-w-2xl font-display text-[3.65rem] leading-[.98] tracking-[-.065em] text-white sm:text-7xl lg:text-[5.8rem]">Helping memories <span className="text-[#73e5c4]">stay close.</span></h1><p className="mt-7 max-w-xl text-lg leading-8 text-[#afc7c8] sm:text-xl">A trusted AI companion for people living with early memory loss.</p><p className="mt-5 max-w-xl text-sm leading-6 text-[#839fa5] sm:text-base">Dory remembers important moments, answers only from verified facts, and safely involves family whenever it is uncertain.</p><div className="mt-9 flex flex-wrap items-center gap-3"><a href="#get-started" onClick={(event) => { event.preventDefault(); setScreen('signup'); }} className="inline-flex items-center gap-2 rounded-2xl bg-[#73e5c4] px-5 py-3.5 text-sm font-bold text-[#082131] shadow-[0_14px_35px_rgba(73,215,179,.2)] transition hover:-translate-y-1 hover:bg-[#8eefd2]">Get started <ArrowRight size={16} /></a><button type="button" onClick={() => setShowWorkflow(true)} className="inline-flex items-center gap-2 rounded-2xl border border-white/15 bg-white/[.07] px-5 py-3.5 text-sm font-bold text-white backdrop-blur-xl transition hover:-translate-y-1 hover:bg-white/[.12]"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/15"><Play size={12} fill="currentColor" /></span> See workflow</button></div><div className="mt-10 flex flex-wrap items-center gap-5 text-xs font-semibold text-[#739299]"><span className="flex items-center gap-2"><LockKeyhole size={14} className="text-[#73e5c4]" /> Private by design</span><span className="h-1 w-1 rounded-full bg-[#5a7c82]" /><span className="flex items-center gap-2"><HeartHandshake size={14} className="text-[#73e5c4]" /> Built for real families</span></div></div><ConversationCard /></div>
+      <div className="relative z-10 mx-auto grid max-w-7xl gap-3 px-5 pb-7 sm:grid-cols-3 sm:px-8 lg:px-10"><Stat icon={ShieldCheck}>Verified fact answers</Stat><Stat icon={Pill}>100% medication safety</Stat><Stat icon={UsersRound}>Family-in-the-loop design</Stat></div>
+    </section>
+
+    <section id="families" className="mx-auto max-w-7xl px-5 py-24 sm:px-8 lg:px-10"><div className="grid items-end gap-8 lg:grid-cols-[.8fr_1.2fr]"><div><Eyebrow>Why families choose Dory</Eyebrow><h2 className="mt-4 max-w-xl font-display text-4xl leading-[1.04] tracking-[-.045em] text-[#123141] sm:text-5xl">Less uncertainty. More of the moments that matter.</h2></div><p className="max-w-xl text-base leading-7 text-[#71898b] lg:justify-self-end">Most assistants are built to answer quickly. Dory is built to answer responsibly — with a source, a safety check, and a trusted person close by.</p></div><div className="mt-12 grid gap-4 md:grid-cols-3">{features.map((feature) => <FeatureCard key={feature.title} feature={feature} />)}</div></section>
+
+    <section id="how" className="border-y border-[#dfede7] bg-[#eef8f3] px-5 py-24 sm:px-8 lg:px-10"><div className="mx-auto max-w-7xl"><div className="max-w-2xl"><Eyebrow>The Dory loop</Eyebrow><h2 className="mt-4 font-display text-4xl leading-[1.04] tracking-[-.045em] text-[#123141] sm:text-5xl">A thoughtful answer is a journey, not a guess.</h2></div><div className="relative mt-14 grid gap-8 md:grid-cols-5 md:gap-4">{steps.map((item, index) => { const Icon = item.icon; return <div key={item.step} className="reveal-on-scroll relative"><div className="flex items-center gap-3 md:block"><div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#cfe4d9] bg-white text-[#338c74] shadow-sm"><Icon size={21} strokeWidth={1.8} /></div><div className="md:mt-5"><div className="text-[10px] font-bold uppercase tracking-[.17em] text-[#83a69c]">{item.step}</div><h3 className="mt-1 text-base font-bold text-[#244750]">{item.title}</h3></div></div><p className="mt-3 pl-[60px] text-sm leading-5 text-[#78918f] md:pl-0">{item.copy}</p>{index < steps.length - 1 && <div className="absolute left-6 top-[60px] h-7 border-l border-dashed border-[#b9d9c9] md:left-[calc(100%_-_4px)] md:top-6 md:h-px md:w-[calc(100%_-_26px)] md:border-l-0 md:border-t" />}</div>; })}</div></div></section>
+
+    <section id="safety" className="bg-[#081c2c] px-5 py-24 text-white sm:px-8 lg:px-10"><div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[.8fr_1.2fr] lg:items-start"><div><Eyebrow light>Safety is the feature</Eyebrow><h2 className="mt-4 max-w-lg font-display text-4xl leading-[1.04] tracking-[-.045em] sm:text-5xl">What Dory will <span className="text-[#f1c86e]">never</span> do.</h2><p className="mt-6 max-w-md text-base leading-7 text-[#9fb8bb]">Trust is not a setting. It is the product. Every boundary is designed to keep a person safe and a family in the loop.</p><div className="mt-8 flex items-center gap-3 text-sm font-semibold text-[#7c9ea1]"><ShieldCheck size={18} className="text-[#73e5c4]" /> Grounded answers over confident guesses.</div></div><div className="grid gap-3 sm:grid-cols-2">{[['Make up information', 'If there is no verified fact, Dory says so.', X, 'rose'], ['Guess medication instructions', 'Medication questions always need a human check.', X, 'rose'], ['Answer without evidence', 'Every response shows where it came from.', X, 'rose'], ['Ask family when uncertain', 'The safest answer is sometimes a thoughtful question.', Check, 'teal']].map(([title, copy, Icon, tone]) => <div key={title} className="motion-card reveal-on-scroll rounded-[24px] border border-white/10 bg-white/[.055] p-5 transition hover:bg-white/[.08]"><div className={`flex h-10 w-10 items-center justify-center rounded-xl ${tone === 'teal' ? 'bg-[#73e5c4]/15 text-[#73e5c4]' : 'bg-[#ed8c7f]/15 text-[#ef9b8e]'}`}><Icon size={19} /></div><h3 className="mt-5 text-base font-bold text-white">{title}</h3><p className="mt-2 text-sm leading-5 text-[#88a5a8]">{copy}</p></div>)}</div></div></section>
+
+    <ProductPreview />
+
+    <section id="get-started" className="mx-auto max-w-7xl px-5 pb-24 sm:px-8 lg:px-10"><div className="motion-card motion-shimmer relative overflow-hidden rounded-[32px] bg-[#dff7ed] px-6 py-12 sm:px-12 sm:py-14"><div className="absolute -right-16 -top-32 h-80 w-80 rounded-full border-[28px] border-[#a9e5ce]/70" /><div className="absolute -bottom-20 right-24 h-48 w-48 rounded-full border-[18px] border-[#b9ead8]/70" /><div className="relative max-w-2xl"><Eyebrow>Start with one good day</Eyebrow><h2 className="mt-4 font-display text-4xl leading-[1.04] tracking-[-.045em] text-[#123141] sm:text-5xl">Give families a better way to remember together.</h2><p className="mt-5 max-w-xl text-base leading-7 text-[#5e7f7d]">Dory is made for the quiet moments: a familiar voice, a safe answer, and one less thing for a family to carry alone.</p><button type="button" onClick={() => setShowWorkflow(true)} className="mt-8 inline-flex items-center gap-2 rounded-2xl bg-[#123141] px-5 py-3.5 text-sm font-bold text-white shadow-lg transition hover:-translate-y-1 hover:bg-[#1e4c58]">See the workflow <ArrowRight size={16} /></button></div></div></section>
+
+    <footer id="login" className="border-t border-[#dcebe5] bg-[#f7fbf8] px-5 py-12 sm:px-8 lg:px-10"><div className="mx-auto flex max-w-7xl flex-col justify-between gap-10 md:flex-row"><div><Logo light={false} /><p className="mt-5 max-w-xs text-sm leading-6 text-[#78918f]">A trusted AI memory companion for people with early memory loss and the families beside them.</p></div><div className="grid grid-cols-2 gap-x-16 gap-y-8 sm:grid-cols-3"><div><div className="text-xs font-bold uppercase tracking-[.16em] text-[#90a6a2]">Explore</div><div className="mt-4 space-y-3 text-sm font-semibold text-[#4d6e70]"><a href="#how" className="block hover:text-[#2f8d75]">How it works</a><a href="#safety" className="block hover:text-[#2f8d75]">Safety</a><a href="#product" className="block hover:text-[#2f8d75]">Product</a></div></div><div><div className="text-xs font-bold uppercase tracking-[.16em] text-[#90a6a2]">For families</div><div className="mt-4 space-y-3 text-sm font-semibold text-[#4d6e70]"><a href="#get-started" className="block hover:text-[#2f8d75]">Get started</a><a href="#families" className="block hover:text-[#2f8d75]">Care circle</a><a href="#login" className="block hover:text-[#2f8d75]">Login</a></div></div><div><div className="text-xs font-bold uppercase tracking-[.16em] text-[#90a6a2]">The project</div><div className="mt-4 space-y-3 text-sm font-semibold text-[#4d6e70]"><a href="https://github.com" className="flex items-center gap-2 hover:text-[#2f8d75]"><GitBranch size={15} /> GitHub</a><a href="#how" className="flex items-center gap-2 hover:text-[#2f8d75]"><BookOpen size={15} /> Documentation</a><span className="flex items-center gap-2"><HeartHandshake size={15} /> Built with care</span></div></div></div></div><div className="mx-auto mt-12 flex max-w-7xl flex-col justify-between gap-3 border-t border-[#dcebe5] pt-5 text-[11px] font-semibold text-[#91a4a1] sm:flex-row"><span>© 2026 Dory. Made for the moments that matter.</span><span className="flex items-center gap-1.5"><LockKeyhole size={13} /> Privacy-first by design</span></div></footer>
+
+    {showWorkflow && <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#04111c]/75 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-label="Dory workflow"><div className="relative w-full max-w-2xl overflow-hidden rounded-[30px] border border-white/15 bg-[#102d3b] p-5 text-white shadow-2xl sm:p-7"><button type="button" onClick={() => setShowWorkflow(false)} aria-label="Close workflow" className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-[#a9c5c6] transition hover:bg-white/15 hover:text-white"><X size={17} /></button><Eyebrow light>The Dory workflow</Eyebrow><h2 className="mt-4 max-w-lg font-display text-3xl leading-tight tracking-[-.04em] sm:text-4xl">A question becomes a verified memory.</h2><div className="mt-7 grid gap-3 sm:grid-cols-3"><div className="rounded-2xl border border-white/10 bg-white/[.06] p-4"><div className="text-[10px] font-bold uppercase tracking-[.14em] text-[#83b3aa]">01 · Ask</div><p className="mt-3 text-sm font-semibold leading-5">“A patient question appears here.”</p></div><div className="rounded-2xl border border-[#efc978]/20 bg-[#efc978]/[.08] p-4"><div className="text-[10px] font-bold uppercase tracking-[.14em] text-[#e5c97c]">02 · Protect</div><p className="mt-3 text-sm font-semibold leading-5">“Dory pauses when a verified answer is unavailable.”</p></div><div className="rounded-2xl border border-[#6eddbd]/20 bg-[#6eddbd]/[.08] p-4"><div className="text-[10px] font-bold uppercase tracking-[.14em] text-[#82e4c6]">03 · Remember</div><p className="mt-3 text-sm font-semibold leading-5">Family confirmation becomes a memory entry.</p></div></div><div className="mt-7 flex items-center justify-between border-t border-white/10 pt-5"><div className="flex items-center gap-2 text-xs font-semibold text-[#8eadb0]"><ShieldCheck size={15} className="text-[#73e5c4]" /> No guesswork. Ever.</div><button type="button" onClick={() => setShowWorkflow(false)} className="rounded-xl bg-[#73e5c4] px-4 py-2.5 text-xs font-bold text-[#082131] transition hover:bg-[#8eefd2]">Close workflow</button></div></div></div>}
+  </div>;
+}
+
+createRoot(document.getElementById('root')).render(<App />);
+
+export default App;

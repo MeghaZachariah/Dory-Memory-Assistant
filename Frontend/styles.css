@@ -1,0 +1,137 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "DM Sans", "Avenir Next", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", Georgia, serif;
+}
+
+:root {
+  font-family: "DM Sans", "Avenir Next", ui-sans-serif, system-ui, sans-serif;
+  color: #123141;
+  background: #f7fbf8;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: #f7fbf8;
+}
+
+button, input, textarea { font: inherit; }
+button { cursor: pointer; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible {
+  outline: 3px solid #73e5c4;
+  outline-offset: 3px;
+}
+
+a { text-decoration: none; }
+::selection { background: #9deed7; color: #082131; }
+.font-display { font-family: "Fraunces", Georgia, serif; }
+
+@keyframes listening-ring {
+  0%, 100% { transform: scale(1); opacity: .78; }
+  50% { transform: scale(1.09); opacity: .28; }
+}
+
+@keyframes soft-breathe {
+  0%, 100% { transform: scale(1); box-shadow: 0 16px 40px rgba(115, 75, 27, .16); }
+  50% { transform: scale(1.035); box-shadow: 0 22px 52px rgba(115, 75, 27, .23); }
+}
+
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.animate-listening-ring { animation: listening-ring 1.35s ease-in-out infinite; }
+.animate-soft-breathe { animation: soft-breathe 2.7s ease-in-out infinite; }
+.animate-bob { animation: bob 1.15s ease-in-out infinite; }
+.skeleton {
+  background: linear-gradient(100deg, #e7e1d7 20%, #f5f0e7 38%, #e7e1d7 55%);
+  background-size: 200% 100%;
+  animation: shimmer 1.35s linear infinite;
+}
+
+.soft-grid {
+  background-image: linear-gradient(rgba(22, 35, 51, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(22, 35, 51, .035) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(81, 96, 111, .22); border: 3px solid transparent; background-clip: padding-box; border-radius: 999px; }
+
+/* Dory motion language: soft, purposeful, and easy to turn off. */
+@keyframes dory-rise {
+  from { opacity: 0; transform: translate3d(0, 18px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes dory-float {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50% { transform: translate3d(0, -7px, 0) rotate(.35deg); }
+}
+
+@keyframes dory-glow {
+  0%, 100% { opacity: .55; transform: scale(1); }
+  50% { opacity: .9; transform: scale(1.045); }
+}
+
+@keyframes dory-drift {
+  0% { transform: translate3d(-5%, 0, 0) rotate(0deg); }
+  50% { transform: translate3d(5%, 2%, 0) rotate(4deg); }
+  100% { transform: translate3d(-5%, 0, 0) rotate(0deg); }
+}
+
+@keyframes dory-shimmer {
+  0% { background-position: 180% 0; }
+  100% { background-position: -180% 0; }
+}
+
+@keyframes dory-dash {
+  to { stroke-dashoffset: -24; }
+}
+
+.motion-fade { animation: dory-rise .75s cubic-bezier(.2,.75,.25,1) both; }
+.motion-rise { animation: dory-rise .9s cubic-bezier(.2,.75,.25,1) both; animation-delay: var(--motion-delay, 0ms); }
+.motion-float { animation: dory-float 6.5s ease-in-out infinite; }
+.motion-glow { animation: dory-glow 5.5s ease-in-out infinite; }
+.motion-drift { animation: dory-drift 15s ease-in-out infinite; }
+.motion-delay-1 { --motion-delay: 90ms; }
+.motion-delay-2 { --motion-delay: 180ms; }
+.motion-delay-3 { --motion-delay: 270ms; }
+.motion-delay-4 { --motion-delay: 360ms; }
+.motion-delay-5 { --motion-delay: 450ms; }
+.motion-card { transition: transform .45s cubic-bezier(.2,.75,.25,1), box-shadow .45s cubic-bezier(.2,.75,.25,1), border-color .35s ease, background-color .35s ease; }
+.motion-card:hover { transform: translate3d(0, -6px, 0); }
+.motion-shimmer { background-image: linear-gradient(110deg, transparent 28%, rgba(255,255,255,.14) 48%, transparent 68%); background-size: 240% 100%; animation: dory-shimmer 5.5s ease-in-out infinite; }
+.motion-dash { stroke-dasharray: 5 8; animation: dory-dash 2.8s linear infinite; }
+
+@supports (animation-timeline: view()) {
+  .reveal-on-scroll { opacity: 0; transform: translate3d(0, 22px, 0); animation: dory-reveal linear both; animation-timeline: view(); animation-range: entry 8% cover 28%; }
+  @keyframes dory-reveal {
+    to { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+  .motion-rise, .reveal-on-scroll { opacity: 1; transform: none; }
+}
