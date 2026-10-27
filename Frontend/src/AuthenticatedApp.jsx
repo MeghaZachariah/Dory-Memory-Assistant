@@ -36,7 +36,8 @@ import {
 } from 'lucide-react';
 import VoiceScreen from './VoiceScreen.jsx';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api';
+const API_BASE =
+  import.meta.env.VITE_API_BASE || "http://localhost:8000";
 const SESSION_KEY = 'dory_session';
 
 const emptyData = { summary: null, facts: [], questions: [], answers: [], medications: [], events: [], responses: [], telegram: null };
@@ -86,7 +87,7 @@ function AuthProvider({ children }) {
     try {
       const data = await apiRequest('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
       const authenticated = data?.session || data;
-      persist(authenticated);
+      persist(authenticated?.account ? { ...authenticated.account, token: authenticated.token } : authenticated);
       try { const profile = await apiRequest('/auth/me'); persist({ ...authenticated, ...(profile?.session || profile) }); } catch { /* login response remains usable */ }
       return authenticated;
     } catch (error) {
@@ -99,8 +100,9 @@ function AuthProvider({ children }) {
       const data = await apiRequest('/auth/signup', { method: 'POST', body: JSON.stringify(payload) });
       const created = data?.session || data;
       if (!created?.token) throw new Error('The account response did not include an authenticated session.');
-      persist(created);
-      return created;
+      const sessionValue = created.account ? { ...created.account, token: created.token } : created;
+      persist(sessionValue);
+      return sessionValue;
     } finally { setAuthLoading(false); }
   };
   const logout = async () => { try { await apiRequest('/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${session?.token || ''}` } }); } catch { /* local logout still succeeds */ } persist(null); };
@@ -129,7 +131,13 @@ function SignupView({ go }) {
   const { signup, authLoading } = useAuth();
   const [step, setStep] = useState(0); const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [patient, setPatient] = useState(''); const [family, setFamily] = useState(['']); const [caregivers, setCaregivers] = useState(['']); const [error, setError] = useState('');
   const addRow = (setter, values) => setter([...values, '']); const removeRow = (setter, values, index) => setter(values.filter((_, itemIndex) => itemIndex !== index));
-  const submit = async (event) => { event.preventDefault(); setError(''); if (step < 2) { if (step === 0 && (password.length < 8 || !email)) { setError('Use a valid email and a password with at least 8 characters.'); return; } if (step === 1 && !patient.trim()) { setError('Tell us who Dory is caring for.'); return; } setStep(step + 1); return; } try { await signup({ email, password, patient_name: patient, family_members: family.filter(Boolean), caregivers: caregivers.filter(Boolean) }); go('welcome'); } catch { setError('We could not create the family account. Check the details and try again.'); } };
+  const submit = async (event) => { event.preventDefault(); setError(''); if (step < 2) { if (step === 0 && (password.length < 8 || !email)) { setError('Use a valid email and a password with at least 8 characters.'); return; } if (step === 1 && !patient.trim()) { setError('Tell us who Dory is caring for.'); return; } setStep(step + 1); return; } const payload = {
+  email,
+  password,
+  person_name: patient,
+  family_names: family,
+  caregivers,
+}; try { await signup(payload); go('welcome'); } catch { setError('We could not create the family account. Check the details and try again.'); } };
   return <AuthShell onBack={() => go('landing')}><form onSubmit={submit} className="w-full max-w-2xl rounded-[30px] border border-white/15 bg-white/[.07] p-6 shadow-[0_30px_100px_rgba(0,0,0,.24)] backdrop-blur-2xl sm:p-8"><div className="flex items-center justify-between"><div><div className="text-xs font-bold uppercase tracking-[.18em] text-[#73e5c4]">Create your circle</div><h1 className="mt-3 font-display text-4xl tracking-[-.045em]">A gentler way to stay connected.</h1></div><div className="hidden items-center gap-1 sm:flex">{['Account', 'Family', 'Review'].map((item, index) => <div key={item} className="flex items-center gap-2"><span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${index <= step ? 'bg-[#73e5c4] text-[#082131]' : 'bg-white/10 text-[#77999f]'}`}>{index < step ? <Check size={14} /> : index + 1}</span>{index < 2 && <span className="h-px w-8 bg-white/10" />}</div>)}</div></div>{step === 0 && <div className="mt-8 space-y-4"><Input label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required /><Input label="Password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} required /></div>}{step === 1 && <div className="mt-8 space-y-6"><Input label="Patient name" value={patient} onChange={(event) => setPatient(event.target.value)} required /><DynamicRows label="Family members" values={family} setValues={setFamily} addRow={addRow} removeRow={removeRow} /><DynamicRows label="Caregivers" values={caregivers} setValues={setCaregivers} addRow={addRow} removeRow={removeRow} /></div>}{step === 2 && <div className="mt-8 rounded-2xl border border-white/10 bg-white/[.05] p-5"><div className="text-xs font-bold uppercase tracking-[.15em] text-[#8eaaad]">Review your circle</div><div className="mt-5 grid gap-3 sm:grid-cols-3"><Review label="Patient" value={patient} /><Review label="Family" value={family.filter(Boolean).join(', ') || 'Not added yet'} /><Review label="Caregivers" value={caregivers.filter(Boolean).join(', ') || 'Not added yet'} /></div></div>}{error && <div className="mt-5 rounded-2xl border border-[#ef9b8e]/25 bg-[#ef9b8e]/10 px-4 py-3 text-sm text-[#ffc2b9]">{error}</div>}<div className="mt-8 flex items-center justify-between gap-3"><button type="button" onClick={() => step === 0 ? go('login') : setStep(step - 1)} className="rounded-2xl px-4 py-3 text-sm font-bold text-[#9bb6b9] hover:text-white">{step === 0 ? 'Already have an account?' : 'Back'}</button><button type="submit" disabled={authLoading} className="flex items-center gap-2 rounded-2xl bg-[#73e5c4] px-5 py-3.5 text-sm font-bold text-[#082131] transition hover:bg-[#8eefd2] disabled:opacity-50">{authLoading ? <RefreshCw size={16} className="animate-spin" /> : step === 2 ? <Check size={16} /> : <ArrowRight size={16} />} {step === 2 ? 'Create family account' : 'Continue'}</button></div></form></AuthShell>;
 }
 
@@ -144,9 +152,15 @@ function WelcomeView({ go }) {
 function PortalCard({ icon: Icon, title, copy, tone, onClick }) { return <button type="button" onClick={onClick} className={`group relative overflow-hidden rounded-[28px] p-6 text-left shadow-[0_18px_50px_rgba(26,69,69,.08)] transition duration-300 hover:-translate-y-1 ${tone === 'mint' ? 'border border-[#bfe7d6] bg-[#e6f8ef]' : 'bg-[#123141] text-white'}`}><div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${tone === 'mint' ? 'bg-white text-[#318c75]' : 'bg-[#73e5c4]/15 text-[#73e5c4]'}`}><Icon size={22} /></div><h2 className="mt-7 text-2xl font-bold tracking-[-.03em]">{title}</h2><p className={`mt-3 max-w-sm text-sm leading-6 ${tone === 'mint' ? 'text-[#628580]' : 'text-[#a4c0bd]'}`}>{copy}</p><span className={`mt-8 flex items-center gap-2 text-sm font-bold ${tone === 'mint' ? 'text-[#318c75]' : 'text-[#73e5c4]'}`}>Enter workspace <ArrowRight size={16} className="transition group-hover:translate-x-1" /></span><div className="absolute -bottom-20 -right-12 h-48 w-48 rounded-full border-[20px] border-white/10" /></button>; }
 function MiniInfo({ icon: Icon, label, value }) { return <div className="rounded-2xl border border-[#dcebe5] bg-white p-4"><Icon size={17} className="text-[#5aaa8d]" /><div className="mt-4 text-[10px] font-bold uppercase tracking-[.14em] text-[#92a5a0]">{label}</div><div className="mt-1 text-sm font-bold text-[#34535a]">{value}</div></div>; }
 
+function PortalHeader({ title, onBack, onFamily }) {
+  return <header className="border-b border-[#dcebe5] bg-[#081c2c] px-5 py-5 text-white sm:px-8 lg:px-10"><div className="mx-auto flex max-w-7xl items-center justify-between"><div className="flex items-center gap-3"><button type="button" onClick={onBack} aria-label="Back to family circle" className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[.06] text-[#9db9bc] hover:text-white"><ArrowLeft size={17} /></button><div><div className="text-[10px] font-bold uppercase tracking-[.18em] text-[#73e5c4]">Dory</div><div className="mt-0.5 text-sm font-bold">{title}</div></div></div><button type="button" onClick={onFamily} className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[.06] px-3 py-2 text-xs font-bold text-[#dcebe5] hover:bg-white/[.1]"><UsersRound size={15} /> Family view</button></div></header>;
+}
+
 function PatientPortal({ go }) {
   const { session } = useAuth();
-  const personName = session?.person_name || '';
+  const account = session?.account || session;
+  const personId = account?.person_id || '';
+  const personName = account?.person_name || '';
   const [patientData, setPatientData] = useState({ events: [], facts: [], questions: [] });
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -158,7 +172,7 @@ function PatientPortal({ go }) {
     const interval = window.setInterval(load, 15000);
     return () => { cancelled = true; window.clearInterval(interval); };
   }, []);
-  return <div className="min-h-screen bg-[#f7fbf8] text-[#123141]"><PortalHeader title="Patient Portal" onBack={() => go('welcome')} onFamily={() => go('family')} /><main className="mx-auto max-w-7xl px-4 pb-10 pt-6 sm:px-7 lg:px-10"><div className="mb-5 rounded-[24px] border border-[#dcebe5] bg-white px-5 py-4 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-3"><div><div className="text-xs font-bold uppercase tracking-[.18em] text-[#499f88]">{new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date())}</div><h1 className="mt-1 font-display text-3xl tracking-[-.04em] text-[#123141]">{personName ? `Good morning, ${personName}.` : 'Your calm corner is ready.'}</h1></div><div className="flex items-center gap-2 rounded-full bg-[#e9f7ef] px-3 py-2 text-xs font-bold text-[#4e9272]"><span className="h-2 w-2 rounded-full bg-[#5aaa8d]" /> Dory is here</div></div></div><div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]"><div><VoiceScreen personName={personName} onUnknown={(question) => setPatientData((current) => ({ ...current, questions: [question, ...current.questions] }))} /><FamilyStatusCards questions={patientData.questions} /></div><aside className="space-y-4"><TodayOverview events={patientData.events} loading={loading} /><RecentMemories facts={patientData.facts} loading={loading} /></aside></div></main></div>;
+  return <div className="min-h-screen bg-[#f7fbf8] text-[#123141]"><PortalHeader title="Patient Portal" onBack={() => go('welcome')} onFamily={() => go('family')} /><main className="mx-auto max-w-7xl px-4 pb-10 pt-6 sm:px-7 lg:px-10"><div className="mb-5 rounded-[24px] border border-[#dcebe5] bg-white px-5 py-4 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-3"><div><div className="text-xs font-bold uppercase tracking-[.18em] text-[#499f88]">{new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date())}</div><h1 className="mt-1 font-display text-3xl tracking-[-.04em] text-[#123141]">{personName ? `Good morning, ${personName}.` : 'Your calm corner is ready.'}</h1></div><div className="flex items-center gap-2 rounded-full bg-[#e9f7ef] px-3 py-2 text-xs font-bold text-[#4e9272]"><span className="h-2 w-2 rounded-full bg-[#5aaa8d]" /> Dory is here</div></div></div><div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]"><div><VoiceScreen personId={personId} personName={personName} onUnknown={(question) => setPatientData((current) => ({ ...current, questions: [question, ...current.questions] }))} /><FamilyStatusCards questions={patientData.questions} /></div><aside className="space-y-4"><TodayOverview events={patientData.events} loading={loading} /><RecentMemories facts={patientData.facts} loading={loading} /></aside></div></main></div>;
 }
 function WorkflowStatus({ status, stored = false }) {
   const value = String(status || '').toLowerCase();

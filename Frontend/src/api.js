@@ -1,6 +1,6 @@
 // All calls to the backend live here. When the real backend replaces the mock,
 // nothing else in the frontend should need to change (see API_CONTRACT.md).
-const BASE = import.meta.env.VITE_API_BASE || "/api";
+const BASE = import.meta.env.VITE_API_BASE || "";
 
 async function request(path, options = {}) {
   const res = await fetch(`${BASE}${path}`, {

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUp, Check, Clock3, Headphones, Heart, Info, LoaderCircle, MessageCircle, Mic, PhoneCall, Play, RotateCcw, Send, Sparkles, Volume2, X } from 'lucide-react';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000/api';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+const SESSION_KEY = 'dory_session';
 
 const STATUS_COPY = {
   idle: { label: 'Ready when you are', detail: 'Tap the microphone, or type below.', tone: 'text-[#61747b]', icon: Mic },
@@ -65,7 +66,7 @@ function MessageBubble({ message }) {
   );
 }
 
-export default function VoiceScreen({ personName = '', onUnknown }) {
+export default function VoiceScreen({ personId = '', personName = '', onUnknown }) {
   const [status, setStatus] = useState('idle');
   const [messages, setMessages] = useState(() => buildStarterMessages(personName));
   const [draft, setDraft] = useState('');
@@ -133,10 +134,12 @@ export default function VoiceScreen({ personName = '', onUnknown }) {
     setStatus('thinking');
 
     try {
+      let token = '';
+      try { token = JSON.parse(localStorage.getItem(SESSION_KEY) || '{}')?.token || ''; } catch { /* the request will remain unauthenticated */ }
       const response = await fetch(`${API_BASE}/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: cleanText }),
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ person_id: personId, message: cleanText }),
       });
       if (!response.ok) throw new Error(`Chat request failed with ${response.status}`);
       const payload = await response.json();
