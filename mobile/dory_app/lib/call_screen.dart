@@ -28,7 +28,8 @@ class _CallScreenState extends State<CallScreen> {
   bool _hungUp = false;
   bool _closing = false;
 
-  static final _goodbye = RegExp(r"\b(bye|goodbye|good night|that's all|that is all|no thanks|no thank you|nothing else|stop)\b",
+  static final _goodbye = RegExp(
+      r"\b(bye|goodbye|good night|that's all|that is all|no thanks|no thank you|nothing else|stop)\b",
       caseSensitive: false);
 
   @override
@@ -66,6 +67,7 @@ class _CallScreenState extends State<CallScreen> {
     final settings = await DorySettings.load();
     _api = DoryApi(settings);
     await _voice.init(settings.locale);
+    if (settings.useFamilyVoice) _voice.familyVoice = _api.speakAsFamily;
     if (widget.callId != null) await FlutterCallkitIncoming.setCallConnected(widget.callId!);
     try {
       switch (widget.mode) {
@@ -100,7 +102,9 @@ class _CallScreenState extends State<CallScreen> {
         await _say('Sorry, I didn\'t hear you. Take your time.');
         heard = await _listen();
       }
-      if (heard.isNotEmpty) turns.add({'speaker': settings.personName.isEmpty ? 'Person' : settings.personName, 'text': heard});
+      if (heard.isNotEmpty) {
+        turns.add({'speaker': settings.personName.isEmpty ? 'Person' : settings.personName, 'text': heard});
+      }
     }
   }
 
@@ -165,13 +169,13 @@ class _CallScreenState extends State<CallScreen> {
     return PopScope(
       canPop: false,
       child: Scaffold(
-        backgroundColor: DoryColors.night,
+        backgroundColor: DoryColors.page,
         body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
             child: Column(
               children: [
-                Text('Dory', style: t.displaySmall?.copyWith(color: DoryColors.cream, fontWeight: FontWeight.w700)),
+                Text('Dory', style: t.displaySmall?.copyWith(color: DoryColors.ink, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 8),
                 _PhaseChip(label: _phaseLabel, listening: _phase == _Phase.listening),
                 const SizedBox(height: 32),
@@ -180,12 +184,12 @@ class _CallScreenState extends State<CallScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(_doryLine, style: t.headlineMedium?.copyWith(color: DoryColors.cream, height: 1.35)),
+                        Text(_doryLine, style: t.headlineMedium?.copyWith(color: DoryColors.ink, height: 1.35)),
                         if (_heard.isNotEmpty) ...[
                           const SizedBox(height: 28),
-                          Text('You said:', style: t.titleMedium?.copyWith(color: DoryColors.mist)),
+                          Text('You said:', style: t.titleMedium?.copyWith(color: DoryColors.muted)),
                           const SizedBox(height: 6),
-                          Text(_heard, style: t.headlineSmall?.copyWith(color: DoryColors.sun, height: 1.35)),
+                          Text(_heard, style: t.headlineSmall?.copyWith(color: DoryColors.primary, height: 1.35)),
                         ],
                       ],
                     ),
@@ -223,14 +227,15 @@ class _PhaseChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
       decoration: BoxDecoration(
-        color: listening ? DoryColors.sun : DoryColors.deep,
+        color: listening ? DoryColors.primary : DoryColors.primarySoft,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(listening ? Icons.mic : Icons.graphic_eq, color: listening ? DoryColors.night : DoryColors.cream),
+        Icon(listening ? Icons.mic : Icons.graphic_eq, color: listening ? Colors.white : DoryColors.primary),
         const SizedBox(width: 8),
         Text(label,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(color: listening ? DoryColors.night : DoryColors.cream)),
+            style:
+                Theme.of(context).textTheme.titleLarge?.copyWith(color: listening ? Colors.white : DoryColors.primary)),
       ]),
     );
   }

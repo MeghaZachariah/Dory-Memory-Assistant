@@ -2,24 +2,32 @@ import 'dart:async';
 
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_callkit_incoming/entities/entities.dart';
 import 'package:flutter_callkit_incoming/flutter_callkit_incoming.dart';
 
 import 'call_screen.dart';
 import 'calls.dart';
 import 'home_screen.dart';
+import 'login_screen.dart';
+import 'settings.dart';
 import 'theme.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setSystemUIOverlayStyle(darkStatusBar);
   await AndroidAlarmManager.initialize();
-  runApp(const DoryApp());
+  final signedIn = (await DorySettings.load()).signedIn;
+  runApp(DoryApp(signedIn: signedIn));
 }
 
 class DoryApp extends StatefulWidget {
-  const DoryApp({super.key});
+  const DoryApp({super.key, required this.signedIn});
+
+  /// Opens on the login screen until the family's account is signed in on this phone.
+  final bool signedIn;
 
   @override
   State<DoryApp> createState() => _DoryAppState();
@@ -78,7 +86,7 @@ class _DoryAppState extends State<DoryApp> {
           child: child!,
         );
       },
-      home: const HomeScreen(),
+      home: widget.signedIn ? const HomeScreen() : const LoginScreen(),
     );
   }
 }

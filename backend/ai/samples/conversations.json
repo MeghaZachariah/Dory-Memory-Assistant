@@ -3,7 +3,8 @@
     "person_id": "mary",
     "person_name": "Mary",
     "family": ["Anu", "Ravi"],
-    "note": "Fictional test persona. Anu is her daughter, Ravi her son, Lakshmi a neighbour."
+    "caregivers": ["Priya"],
+    "note": "Fictional test persona. Anu is her daughter, Ravi her son, Lakshmi a neighbour, Priya her caregiver."
   },
   "conversations": [
     {

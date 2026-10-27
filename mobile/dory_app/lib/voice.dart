@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:typed_data';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_recognition_error.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
@@ -16,6 +18,11 @@ class Voice {
 
   /// Called with each partial transcript while the person is speaking.
   void Function(String words)? onPartial;
+
+  /// Set when the family voice is switched on: returns the line as WAV audio, or null
+  /// (voice server off, language not supported...), in which case the phone voice speaks it.
+  Future<Uint8List?> Function(String text)? familyVoice;
+  final AudioPlayer _player = AudioPlayer();
 
   Future<bool> init(String locale) async {
     if (_ready) return true;
@@ -45,11 +52,26 @@ class Voice {
 
   Future<void> speak(String text) async {
     if (text.trim().isEmpty) return;
+    final audio = await familyVoice?.call(text);
+    if (audio != null && await play(audio)) return;
     await _tts.speak(text);
   }
 
+  /// Plays WAV bytes to the end. False if playback failed.
+  Future<bool> play(Uint8List wav) async {
+    try {
+      final done = _player.onPlayerComplete.first;
+      await _player.play(BytesSource(wav, mimeType: 'audio/wav'));
+      await done.timeout(const Duration(minutes: 2));
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Listens once. Returns what the person said, or '' if they said nothing.
-  Future<String> listen({Duration listenFor = const Duration(seconds: 20), Duration pauseFor = const Duration(seconds: 3)}) async {
+  Future<String> listen(
+      {Duration listenFor = const Duration(seconds: 20), Duration pauseFor = const Duration(seconds: 3)}) async {
     if (!_ready) return '';
     await _stt.cancel();
     _lastWords = '';
@@ -101,6 +123,7 @@ class Voice {
   Future<void> stop() async {
     await _stt.cancel();
     await _tts.stop();
+    await _player.stop();
     _finish();
   }
 }

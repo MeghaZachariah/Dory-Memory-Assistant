@@ -30,7 +30,7 @@ from telegram.ext import (Application, CallbackQueryHandler, CommandHandler,
 
 TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
 API = os.getenv("DORY_API", "http://localhost:8000")
-PERSON_ID = os.getenv("DORY_PERSON_ID", "mum-demo")
+PERSON_ID = os.getenv("DORY_PERSON_ID", "mary")
 FAMILY_CODE = os.getenv("FAMILY_CODE", "dory-family")
 CAREGIVER_CODE = os.getenv("CAREGIVER_CODE", "dory-caregiver")
 TZ = ZoneInfo(os.getenv("DORY_TZ", "Asia/Dubai"))

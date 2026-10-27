@@ -15,6 +15,9 @@ dependencies:
   android_alarm_manager_plus: ^5.0.0 # daily 8 pm / 8 am calls, even when the app is closed
   shared_preferences: ^2.2.0
   http: ^1.2.0
+  record: ^7.1.2
+  audioplayers: ^6.8.1
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:
