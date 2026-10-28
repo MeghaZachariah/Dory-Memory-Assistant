@@ -149,7 +149,7 @@ def chat(
         return _finish(person_id, message, result, t0, noted=noted)
 
     # 3. Lie-catcher.
-    check, check_res = check_answer(question, draft, facts_by_id, today, allowed_names)
+    check, check_res = check_answer(question, draft, facts_by_id, today, allowed_names, person_name)
     if check_res:
         tiers.append(check_res.tier)
     if not check.passed:
@@ -201,7 +201,7 @@ def _converse(person_id: str, message: str, history: list[dict], questions: list
     # (an "answer" citing no fact is blocked by it too: no receipt, no answer).
     if conv.kind == "answer":
         draft = AnswerDraft(answer=conv.reply, fact_ids_used=conv.fact_ids_used, status="answered")
-        check, check_res = check_answer(question, draft, facts_by_id, today, own_words)
+        check, check_res = check_answer(question, draft, facts_by_id, today, own_words, person_name)
         if check_res:
             tiers.append(check_res.tier)
         if not check.passed:

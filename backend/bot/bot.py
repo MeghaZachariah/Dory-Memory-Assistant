@@ -217,9 +217,13 @@ async def poll(context: ContextTypes.DEFAULT_TYPE):
 
 
 async def summary_text() -> str:
-    data = await call("GET", f"/dashboard/{PERSON_ID}")
-    lines = [data["summary"]] + [f"- {a['text']}" for a in data["alerts"]]
-    return "\n".join(lines)
+    """The daily update written by Nemotron Ultra; the plain dashboard summary if that fails."""
+    try:
+        data = await call("GET", f"/summary/{PERSON_ID}", timeout=90)
+        return "\n".join([data["text"]] + [f"- {a}" for a in data.get("alerts", [])])
+    except httpx.HTTPError:
+        data = await call("GET", f"/dashboard/{PERSON_ID}")
+        return "\n".join([data["summary"]] + [f"- {a['text']}" for a in data["alerts"]])
 
 
 async def daily_summary(context: ContextTypes.DEFAULT_TYPE):

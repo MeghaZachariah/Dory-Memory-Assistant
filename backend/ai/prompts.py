@@ -164,6 +164,8 @@ Return ONLY JSON: {"verdict": "supported" | "unsupported", "reason": "short reas
 
 CHECK_USER = """\
 Today: {today} ({weekday})
+The person asking is {person_name}. The answer speaks to them directly, so "you" and "your" mean
+{person_name}; facts may call them "{person_name}", "she", "he" or "they".
 Question: {question}
 Answer: {answer}
 

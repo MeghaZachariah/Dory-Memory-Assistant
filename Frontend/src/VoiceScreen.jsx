@@ -20,6 +20,23 @@ function formatTime() {
   return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(new Date());
 }
 
+function greeting() {
+  const hour = new Date().getHours();
+  return hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+}
+
+// Calls the Dory server with the family's login token.
+async function doryFetch(path, options = {}) {
+  let token = '';
+  try { token = JSON.parse(localStorage.getItem(SESSION_KEY) || '{}')?.token || ''; } catch { /* the request will remain unauthenticated */ }
+  const response = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(options.headers || {}) },
+  });
+  if (!response.ok) throw new Error(`Dory request failed with ${response.status}`);
+  return response.json();
+}
+
 function answerFromPayload(payload) {
   if (typeof payload === 'string') return payload;
   return payload?.answer || payload?.response || payload?.message || payload?.text || 'I’m not sure yet, but I can ask your family to help us remember.';
@@ -74,6 +91,20 @@ export default function VoiceScreen({ personId = '', personName = '', onUnknown 
   const [speechSupported, setSpeechSupported] = useState(true);
   const recognitionRef = useRef(null);
   const speakingRef = useRef(null);
+  // Refs so voice input (set up once) always sees the latest conversation and mode.
+  const messagesRef = useRef(messages);
+  const busyRef = useRef(false);
+  const [mode, setMode] = useState('chat'); // 'chat' | 'evening'
+  const modeRef = useRef('chat');
+  const eveningRef = useRef({ turn: 0, transcript: [] });
+  const sendRef = useRef(null);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
+  const switchMode = (next) => { modeRef.current = next; setMode(next); };
+  const addMessage = (role, text) => setMessages((current) => {
+    const next = [...current, { role, text, time: formatTime() }];
+    messagesRef.current = next;
+    return next;
+  });
 
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -83,7 +114,7 @@ export default function VoiceScreen({ personId = '', personName = '', onUnknown 
     }
 
     const recognition = new SpeechRecognition();
-    recognition.lang = 'en-US';
+    recognition.lang = 'en-IN';
     recognition.interimResults = false;
     recognition.continuous = false;
     recognition.onstart = () => setStatus('listening');
@@ -91,7 +122,7 @@ export default function VoiceScreen({ personId = '', personName = '', onUnknown 
       const transcript = event.results?.[0]?.[0]?.transcript?.trim();
       if (transcript) {
         setDraft(transcript);
-        void sendMessage(transcript);
+        void sendRef.current?.(transcript);
       }
     };
     recognition.onerror = () => setStatus('idle');
@@ -125,35 +156,102 @@ export default function VoiceScreen({ personId = '', personName = '', onUnknown 
     window.speechSynthesis.speak(utterance);
   };
 
+  function showOffline() {
+    setOffline(true);
+    addMessage('dory', 'I’m having trouble reaching the family memory book right now. We can try again in a moment, or you can tell me another way.');
+    setStatus('idle');
+  }
+
   async function sendMessage(messageText) {
     const cleanText = messageText.trim();
-    if (!cleanText || status === 'thinking') return;
+    if (!cleanText || busyRef.current) return;
+    if (modeRef.current === 'evening') return eveningReply(cleanText);
+    busyRef.current = true;
     setDraft('');
     setOffline(false);
-    setMessages((current) => [...current, { role: 'user', text: cleanText, time: formatTime() }]);
+    // The conversation so far, so Dory can follow it ("no", "what about yesterday?").
+    const history = messagesRef.current.slice(-8).map((m) => ({ speaker: m.role === 'dory' ? 'Dory' : (personName || 'Person'), text: m.text }));
+    addMessage('user', cleanText);
     setStatus('thinking');
-
     try {
-      let token = '';
-      try { token = JSON.parse(localStorage.getItem(SESSION_KEY) || '{}')?.token || ''; } catch { /* the request will remain unauthenticated */ }
-      const response = await fetch(`${API_BASE}/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        // The conversation so far, so Dory can follow it ("no", "what about yesterday?").
-        body: JSON.stringify({ person_id: personId, message: cleanText, history: messages.slice(-8).map((m) => ({ speaker: m.role === 'dory' ? 'Dory' : (personName || 'Person'), text: m.text })) }),
-      });
-      if (!response.ok) throw new Error(`Chat request failed with ${response.status}`);
-      const payload = await response.json();
+      const payload = await doryFetch('/chat', { method: 'POST', body: JSON.stringify({ person_id: personId, message: cleanText, history }) });
       const answer = answerFromPayload(payload);
-      const askingFamily = Boolean(payload?.asking_family || payload?.needs_family || payload?.status === 'asking_family');
-      setMessages((current) => [...current, { role: 'dory', text: answer, time: formatTime() }]);
-      if (askingFamily) { setStatus('asking_family'); onUnknown?.({ question: cleanText, status: 'Pending' }); }
-      else speak(answer);
+      addMessage('dory', answer);
+      speak(answer);
+      if (payload?.asking_family) onUnknown?.({ question: cleanText, status: 'Pending' });
     } catch {
-      const fallback = 'I’m having trouble reaching the family memory book right now. We can try again in a moment, or you can tell me another way.';
-      setOffline(true);
-      setMessages((current) => [...current, { role: 'dory', text: fallback, time: formatTime() }]);
-      setStatus('idle');
+      showOffline();
+    } finally {
+      busyRef.current = false;
+    }
+  }
+  sendRef.current = sendMessage;
+
+  // --- The evening chat: Dory asks about the day; what is said becomes memories. ---
+  async function eveningStep(text) {
+    const evening = eveningRef.current;
+    const payload = await doryFetch('/chat', { method: 'POST', body: JSON.stringify({ person_id: personId, mode: 'evening', turn: evening.turn, text }) });
+    const line = answerFromPayload({ answer: payload?.reply });
+    evening.transcript.push({ role: 'dory', text: line });
+    evening.turn += 1;
+    addMessage('dory', line);
+    speak(line);
+    if (payload?.done) {
+      switchMode('chat');
+      eveningRef.current = { turn: 0, transcript: [] };
+      addMessage('dory', 'I’ve saved today’s memories for your family to see.');
+    }
+  }
+
+  async function startEvening() {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setOffline(false);
+    window.speechSynthesis?.cancel();
+    eveningRef.current = { turn: 0, transcript: [] };
+    switchMode('evening');
+    setStatus('thinking');
+    try { await eveningStep(''); } catch { switchMode('chat'); showOffline(); } finally { busyRef.current = false; }
+  }
+
+  async function eveningReply(text) {
+    busyRef.current = true;
+    setDraft('');
+    addMessage('user', text);
+    eveningRef.current.transcript.push({ role: 'person', text });
+    setStatus('thinking');
+    try { await eveningStep(text); } catch { showOffline(); } finally { busyRef.current = false; }
+  }
+
+  // Stopped before Dory said goodbye: what was said still becomes memories.
+  async function finishEvening() {
+    const { transcript } = eveningRef.current;
+    switchMode('chat');
+    eveningRef.current = { turn: 0, transcript: [] };
+    window.speechSynthesis?.cancel();
+    setStatus('idle');
+    if (!transcript.some((line) => line.role === 'person')) return;
+    try {
+      const saved = await doryFetch('/checkin/evening/finish', { method: 'POST', body: JSON.stringify({ person_id: personId, transcript }) });
+      addMessage('dory', saved?.facts_saved ? `Thank you. I’ve saved ${saved.facts_saved} ${saved.facts_saved === 1 ? 'memory' : 'memories'} from our chat.` : 'Thank you for our chat. Sleep well.');
+    } catch { showOffline(); }
+  }
+
+  // --- The morning briefing, written by Nemotron from yesterday's memories and today's plans. ---
+  async function playBriefing() {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setOffline(false);
+    setStatus('thinking');
+    try {
+      const payload = await doryFetch(`/briefing/morning?person_id=${encodeURIComponent(personId)}`);
+      const text = payload?.text || 'Good morning. I don’t have anything new for today yet.';
+      addMessage('dory', text);
+      speak(text);
+    } catch {
+      showOffline();
+    } finally {
+      busyRef.current = false;
     }
   }
 
@@ -175,7 +273,6 @@ export default function VoiceScreen({ personId = '', personName = '', onUnknown 
     try { recognitionRef.current.start(); } catch { setStatus('idle'); }
   };
 
-  const handleQuickAction = (message) => void sendMessage(message);
 
   return (
     <div className="soft-grid overflow-hidden px-4 pb-5 pt-6 sm:px-7 sm:pt-8 lg:px-10">
@@ -189,15 +286,15 @@ export default function VoiceScreen({ personId = '', personName = '', onUnknown 
           <div className="flex items-start justify-between gap-5">
             <div>
               <p className="text-xs font-bold uppercase tracking-[.2em] text-[#b27a25]">Voice Screen</p>
-              <h1 className="mt-2 max-w-xl font-display text-4xl leading-[1.05] tracking-[-.045em] text-[#1f3346] sm:text-5xl">{personName ? `Good evening, ${personName}.` : 'Good evening.'}</h1>
+              <h1 className="mt-2 max-w-xl font-display text-4xl leading-[1.05] tracking-[-.045em] text-[#1f3346] sm:text-5xl">{personName ? `${greeting()}, ${personName}.` : `${greeting()}.`}</h1>
               <p className="mt-4 max-w-lg text-base leading-7 text-[#718087]">A little help remembering the day, one gentle question at a time.</p>
             </div>
             <div className="hidden h-12 w-12 items-center justify-center rounded-2xl bg-[#f5e1b5] text-[#92651d] sm:flex"><Sparkles size={22} /></div>
           </div>
 
           <div className="mt-8 flex flex-wrap gap-2.5">
-            <button type="button" onClick={() => handleQuickAction('Start an evening chat with me.')} className="group flex items-center gap-2 rounded-full border border-[#e2c98f] bg-[#fff4d8] px-4 py-2.5 text-sm font-bold text-[#74551e] transition hover:-translate-y-0.5 hover:bg-[#ffedbd]"><MessageCircle size={16} /> Start Evening Chat <ArrowUp size={14} className="rotate-45 opacity-50 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" /></button>
-            <button type="button" onClick={() => handleQuickAction('Please play my morning briefing.')} className="group flex items-center gap-2 rounded-full border border-[#d8e5d2] bg-[#eef5e9] px-4 py-2.5 text-sm font-bold text-[#5f795a] transition hover:-translate-y-0.5 hover:bg-[#e4f0dd]"><Play size={15} fill="currentColor" /> Play Morning Briefing <ArrowUp size={14} className="rotate-45 opacity-50 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" /></button>
+            {mode === 'evening' ? <button type="button" onClick={() => void finishEvening()} className="group flex items-center gap-2 rounded-full border border-[#e2c98f] bg-[#fff4d8] px-4 py-2.5 text-sm font-bold text-[#74551e] transition hover:-translate-y-0.5 hover:bg-[#ffedbd]"><Check size={16} /> Finish evening chat</button> : <button type="button" onClick={() => void startEvening()} className="group flex items-center gap-2 rounded-full border border-[#e2c98f] bg-[#fff4d8] px-4 py-2.5 text-sm font-bold text-[#74551e] transition hover:-translate-y-0.5 hover:bg-[#ffedbd]"><MessageCircle size={16} /> Start Evening Chat <ArrowUp size={14} className="rotate-45 opacity-50 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" /></button>}
+            <button type="button" onClick={() => void playBriefing()} className="group flex items-center gap-2 rounded-full border border-[#d8e5d2] bg-[#eef5e9] px-4 py-2.5 text-sm font-bold text-[#5f795a] transition hover:-translate-y-0.5 hover:bg-[#e4f0dd]"><Play size={15} fill="currentColor" /> Play Morning Briefing <ArrowUp size={14} className="rotate-45 opacity-50 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5" /></button>
           </div>
 
           <div className="mt-2 flex flex-col items-center justify-center sm:mt-0 sm:min-h-[345px]">
@@ -227,7 +324,7 @@ export default function VoiceScreen({ personId = '', personName = '', onUnknown 
               {draft && <button type="button" onClick={() => setDraft('')} aria-label="Clear text" className="rounded-full p-2 text-[#9ba5a1] hover:bg-[#f1e8d8] hover:text-[#5c6f76]"><X size={16} /></button>}
               <button type="submit" aria-label="Send question" disabled={!draft.trim() || status === 'thinking'} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#1f3346] text-white transition hover:bg-[#2c4960] disabled:cursor-not-allowed disabled:opacity-35"><Send size={18} /></button>
             </div>
-            <div className="mt-2 flex items-center justify-between px-2 text-[11px] font-semibold text-[#9aa39e]"><span>Not in the mood to talk? Typing works too.</span><button type="button" onClick={() => setMessages(buildStarterMessages(personName))} className="flex items-center gap-1 hover:text-[#6f7d7d]"><RotateCcw size={12} /> Reset</button></div>
+            <div className="mt-2 flex items-center justify-between px-2 text-[11px] font-semibold text-[#9aa39e]"><span>Not in the mood to talk? Typing works too.</span><button type="button" onClick={() => { switchMode('chat'); eveningRef.current = { turn: 0, transcript: [] }; setMessages(buildStarterMessages(personName)); }} className="flex items-center gap-1 hover:text-[#6f7d7d]"><RotateCcw size={12} /> Reset</button></div>
           </form>
 
           {offline && <div className="flex items-start gap-3 rounded-2xl border border-[#efc6b6] bg-[#fff0ea] px-4 py-3 text-sm leading-5 text-[#934e45]"><Info size={17} className="mt-0.5 shrink-0" /><div><strong className="font-bold">The family memory book is offline.</strong> Your question is safe. Try again when the connection is back.</div></div>}

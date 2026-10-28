@@ -79,6 +79,7 @@ def check_answer(
     facts_by_id: dict[int, Fact],
     today: date,
     allowed_names: Iterable[str] = (),
+    person_name: str = "",
 ) -> tuple[CheckResult, Optional[ModelResult]]:
     """The lie-catcher. Returns passed=False if the answer must not be spoken."""
     if draft.status != "answered":
@@ -95,6 +96,7 @@ def check_answer(
     user = prompts.CHECK_USER.format(
         today=today.isoformat(),
         weekday=WEEKDAYS[today.weekday()].title(),
+        person_name=person_name or "the person",
         question=question,
         answer=draft.answer,
         facts="\n".join(format_fact(f, today) for f in cited),

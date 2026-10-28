@@ -66,7 +66,7 @@ def test_chat_then_logs_questions_and_summary(api):
     r = c.post("/chat", json={"person_id": "mary", "message": "Where is my blue umbrella?"}).json()
     assert r["answer"] == r["reply"] and r["asking_family"] is True  # what the website's voice screen reads
     med = c.post("/chat", json={"person_id": "mary", "message": "Did I take my tablets?"}).json()
-    assert med["asking_family"] is False and "9" in med["answer"]
+    assert med["asking_family"] is False and "morning tablets" in med["answer"]
 
     logs = c.get("/dashboard/logs").json()["logs"]
     assert [l["status"] for l in logs[:2]] == ["Medicine rule", "Asked family"]
@@ -112,3 +112,14 @@ def test_telegram_status_without_bot(api, monkeypatch):
     c, _ = api
     t = c.get("/telegram/status").json()
     assert t["status"] in ("Connected", "Not connected") and "resolved_questions" in t
+
+
+def test_ai_summary_on_request_then_shown_all_day(api):
+    c, fm = api
+    fm.on("summary", "Mary had a calm day and asked about Ravi's birthday.")
+    assert c.get("/dashboard/summary").json()["ai_written"] is False
+    r = c.post("/dashboard/summary/ai").json()
+    assert r["ai_written"] and r["briefing"].startswith("Mary had a calm day")
+    s = c.get("/dashboard/summary").json()
+    assert s["ai_written"] and s["briefing"] == r["briefing"]  # kept for the rest of the day
+    assert TestClient(main.app).post("/dashboard/summary/ai").status_code == 401

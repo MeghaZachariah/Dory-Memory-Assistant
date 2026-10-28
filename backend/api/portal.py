@@ -123,10 +123,12 @@ def dashboard_summary(request: Request) -> dict:
     responses = [{"id": q["id"], "text": f'{q.get("answered_by") or "Family"}: “{q.get("answer")}”',
                   "person": q.get("answered_by"), "question": q["question"]} for q in answered_today[:5]]
 
+    ai = _ai_summaries.get(person)
     # NB: no "summary" key. The website reads `payload.summary || payload` as the summary object.
     return {
         "headline": f"{name}’s day so far" if name else "Today so far",
-        "briefing": report.text,
+        "briefing": ai[1] if ai and ai[0] == today else report.text,
+        "ai_written": bool(ai and ai[0] == today),
         "confidence": round(100 * passed / (passed + blocked)) if passed + blocked else None,
         "week": [round(100 * n / busiest) for n in per_day],
         "week_labels": [d.strftime("%a") for d in days],
@@ -138,6 +140,21 @@ def dashboard_summary(request: Request) -> dict:
         "activity": activity,
         "family_responses": responses,
     }
+
+
+# Today's Nemotron Ultra summary per person, kept so the page shows it until tomorrow.
+_ai_summaries: dict[str, tuple[date, str]] = {}
+
+
+@router.post("/dashboard/summary/ai")
+def write_ai_summary(request: Request) -> dict:
+    """The family's daily update written by Nemotron Ultra. Only when asked (it costs credits);
+    the page then shows it instead of the plain summary for the rest of the day."""
+    account = _account(request)
+    report = summary(account.person_id, person_name=account.person_name)
+    if not report.used_fallback:
+        _ai_summaries[account.person_id] = (date.today(), report.text)
+    return {"briefing": report.text, "alerts": report.alerts, "ai_written": not report.used_fallback}
 
 
 # --- memories -------------------------------------------------------------------

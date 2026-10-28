@@ -31,7 +31,7 @@ def test_chat_takes_the_web_screens_shape(api):
     c, _ = api
     r = c.post("/chat", json={"person_id": "mary", "text": "Did I take my tablets?", "mode": "chat"}).json()
     assert r["status"] == "refused" and r["topic"] == "medicine" and r["model_tier"] == "rules"
-    assert r["done"] is False and r["sources"] == [] and "9" in r["reply"]
+    assert r["done"] is False and r["sources"] == [] and "morning tablets" in r["reply"]
     # the app's shape still works, with the same extra fields
     r2 = c.post("/chat", json={"person_id": "mary", "message": "Did I take my tablets?"}).json()
     assert r2["route"] == "medication" and r2["topic"] == "medicine"
