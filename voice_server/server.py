@@ -54,10 +54,16 @@ def _load_models() -> None:
         return
     import torch
     from melo.api import TTS
-    from openvoice.api import ToneColorConverter
+    from openvoice.api import OpenVoiceBaseClass, ToneColorConverter
 
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
-    converter = ToneColorConverter(str(CKPT_DIR / "converter" / "config.json"), device=device, enable_watermark=False)
+    # ToneColorConverter(..., enable_watermark=False) breaks in current OpenVoice (the flag is passed
+    # on to a base class that doesn't take it), and the default needs the `wavmark` package. So build
+    # it without the audio watermark the same way its own __init__ would.
+    converter = ToneColorConverter.__new__(ToneColorConverter)
+    OpenVoiceBaseClass.__init__(converter, str(CKPT_DIR / "converter" / "config.json"), device=device)
+    converter.watermark_model = None  # convert() then skips the watermark
+    converter.version = getattr(converter.hps, "_version_", "v1")
     converter.load_ckpt(str(CKPT_DIR / "converter" / "checkpoint.pth"))
     tts = TTS(language="EN", device=device)
     speakers = tts.hps.data.spk2id
