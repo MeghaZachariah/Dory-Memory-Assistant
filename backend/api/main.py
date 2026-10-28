@@ -129,6 +129,9 @@ class ChatRequest(BaseModel):
     text: str = ""
     mode: str = "chat"  # "chat" | "evening"
     turn: int = 0  # evening: how many Dory lines were already said
+    # The conversation so far in this call, [{"speaker": "Dory" | name, "text": ...}], so Dory can
+    # follow it ("no", "what about yesterday?"). Optional; the last few turns are used.
+    history: list[dict] = Field(default_factory=list)
 
 
 @app.post("/chat", dependencies=secured)
@@ -139,7 +142,7 @@ def post_chat(body: ChatRequest) -> dict:
     message = (body.message or body.text).strip()
     if not message:
         raise HTTPException(status_code=400, detail="message is empty")
-    result = chat(body.person_id, message, person_name=p.name, family_names=p.family_names)
+    result = chat(body.person_id, message, person_name=p.name, family_names=p.family_names, history=body.history)
     return {
         **result.model_dump(mode="json"),
         **compat.chat_extras(body.person_id, result),

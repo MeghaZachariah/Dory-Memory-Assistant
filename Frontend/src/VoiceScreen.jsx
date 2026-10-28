@@ -139,7 +139,8 @@ export default function VoiceScreen({ personId = '', personName = '', onUnknown 
       const response = await fetch(`${API_BASE}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ person_id: personId, message: cleanText }),
+        // The conversation so far, so Dory can follow it ("no", "what about yesterday?").
+        body: JSON.stringify({ person_id: personId, message: cleanText, history: messages.slice(-8).map((m) => ({ speaker: m.role === 'dory' ? 'Dory' : (personName || 'Person'), text: m.text })) }),
       });
       if (!response.ok) throw new Error(`Chat request failed with ${response.status}`);
       const payload = await response.json();

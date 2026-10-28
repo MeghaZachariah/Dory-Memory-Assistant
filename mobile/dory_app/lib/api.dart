@@ -112,11 +112,13 @@ class DoryApi {
     }
   }
 
-  Future<ChatReply> chat(String message) async {
+  /// [history]: the conversation so far in this call, [{"speaker": "Dory" | name, "text": ...}],
+  /// so Dory can follow it ("no", "what about yesterday?").
+  Future<ChatReply> chat(String message, {List<Map<String, String>> history = const []}) async {
     final d = await _send(http.post(
       _url('/chat'),
       headers: _headers,
-      body: jsonEncode({'person_id': settings.personId, 'message': message}),
+      body: jsonEncode({'person_id': settings.personId, 'message': message, 'history': history}),
     ));
     return ChatReply(
       reply: d['reply'] as String? ?? '',
@@ -138,6 +140,20 @@ class DoryApi {
       done: d['done'] as bool? ?? true,
       factsSaved: (d['facts_saved'] as num?)?.toInt() ?? 0,
     );
+  }
+
+  /// The evening call ended before Dory's goodbye: save the memories from what was said so far.
+  Future<void> finishEvening(List<Map<String, String>> turns) async {
+    await _send(http.post(
+      _url('/checkin/evening/finish'),
+      headers: _headers,
+      body: jsonEncode({
+        'person_id': settings.personId,
+        'transcript': [
+          for (final t in turns) {'role': t['speaker'] == 'Dory' ? 'dory' : 'person', 'text': t['text'] ?? ''},
+        ],
+      }),
+    ));
   }
 
   Future<String> briefing() async {

@@ -186,6 +186,7 @@ def dashboard_logs(request: Request) -> dict:
             "status": _verdict(a),
             "source": " · ".join(sources) if sources else {
                 "medication": "Caregiver medicine log", "override": "Safety rule", "statement": "Noted for family check",
+                "conversation": "Conversation (no facts claimed)",
             }.get(a.get("route"), "No source: not answered"),
             "route": a.get("route"),
             "fact_ids": ids,

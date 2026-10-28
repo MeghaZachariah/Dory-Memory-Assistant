@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from . import config, prompts
 from .answering import answer_question, check_answer
 from .client import ModelError, call_model
+from .conversation import converse, free_text_ok, people_in, spoken_names
 from .dates import WEEKDAYS
 from .db_interface import get_db
 from .extraction import extract_facts  # re-exported
@@ -67,11 +68,15 @@ def chat(
     person_name: str = "",
     family_names: Iterable[str] = (),
     now: Optional[datetime] = None,
+    history: Optional[list[dict]] = None,
 ) -> ChatResult:
-    """Answer one thing the person said. Never invents; never answers health questions from memory.
+    """Talk with the person. Never invents; never answers health questions from memory.
 
+    history: the conversation so far in this call, [{"speaker": "Dory" | <name>, "text": ...}], so
+    Dory understands follow-ups like "no" or "what about yesterday?".
     family_names: names of registered family members. They are NOT allowed in model answers unless a
-    cited fact contains them (otherwise "Ravi visited" could slip through); kept for logging and future use.
+    cited fact contains them (otherwise "Ravi visited" could slip through); a reply that doesn't know
+    something may say who it will ask.
     """
     t0 = time.perf_counter()
     now = now or datetime.now()
@@ -106,6 +111,13 @@ def chat(
         )
         return _finish(person_id, message, result, t0, health_kind=kind, noted=noted)
 
+    # 2. A natural conversation (conversation.py). Facts it states still go through the lie-catcher.
+    natural = _converse(person_id, message, history or [], questions, statements, noted, today,
+                        person_name, allowed_names, list(family_names), tiers, t0)
+    if natural is not None:
+        return natural
+
+    # The model couldn't be used: fixed, safe replies as before.
     # Only told Dory something, asked nothing: thank them. Dory never says it is right or wrong.
     if statements and not questions:
         result = ChatResult(reply=config.STATEMENT_REPLY, status="answered", route="statement", notify_family=has_pending)
@@ -164,6 +176,65 @@ def chat(
         checker=check,
         tiers_used=tiers,
     )
+    return _finish(person_id, message, result, t0, noted=noted)
+
+
+def _converse(person_id: str, message: str, history: list[dict], questions: list[str], statements: list[str],
+              noted: list[dict], today: date, person_name: str, allowed_names: list[str],
+              family_names: list[str], tiers: list[str], t0: float) -> Optional[ChatResult]:
+    """Natural reply via conversation.converse(). None means "use the fixed replies"."""
+    try:
+        facts = [f for f in get_db().get_facts(person_id) if f.verification == "confirmed"]
+        conv, res = converse(message, history, facts, today, person_name or "them")
+    except ModelError as e:
+        _safe_log(person_id, "model_error", {"error": str(e)})
+        return None
+    if conv is None or not conv.reply:
+        return None
+    tiers = tiers + ([res.tier] if res else [])
+    facts_by_id = {f.fact_id: f for f in facts if f.fact_id is not None}
+    question = " ".join(questions) or message
+    own_words = allowed_names + spoken_names(message, history)
+    people = people_in(facts, family_names)
+
+    # A question about their life that the facts answer: the full lie-catcher, as before
+    # (an "answer" citing no fact is blocked by it too: no receipt, no answer).
+    if conv.kind == "answer":
+        draft = AnswerDraft(answer=conv.reply, fact_ids_used=conv.fact_ids_used, status="answered")
+        check, check_res = check_answer(question, draft, facts_by_id, today, own_words)
+        if check_res:
+            tiers.append(check_res.tier)
+        if not check.passed:
+            qid = _ask_family(person_id, question, "blocked")
+            result = ChatResult(reply=config.SAFE_UNKNOWN_ASKED_REPLY, status="unknown", route="memory",
+                                checker=check, blocked=True, draft_answer=draft.answer,
+                                fact_ids_used=draft.fact_ids_used, pending_question_id=qid,
+                                notify_family=qid is not None, tiers_used=tiers)
+            return _finish(person_id, message, result, t0, noted=noted)
+        result = ChatResult(reply=draft.answer, status="answered", route="memory",
+                            fact_ids_used=draft.fact_ids_used, checker=check, tiers_used=tiers)
+        return _finish(person_id, message, result, t0, noted=noted)
+
+    # A question about their life the facts don't answer: say so kindly and ask the family.
+    # Family names aren't allowed here: "I'm not sure, but Anu might have come" would be a guess.
+    if conv.kind == "unknown":
+        qid = _ask_family(person_id, conv.family_question or question, "unknown")
+        ok = free_text_ok(conv.reply, [], today, own_words, people)
+        result = ChatResult(reply=conv.reply if ok else config.SAFE_UNKNOWN_ASKED_REPLY, status="unknown",
+                            route="memory", pending_question_id=qid, notify_family=qid is not None,
+                            tiers_used=tiers, draft_answer=None if ok else conv.reply)
+        return _finish(person_id, message, result, t0, noted=noted)
+
+    # Talking: greetings, feelings, things they told Dory, questions about Dory.
+    cited = [facts_by_id[i] for i in conv.fact_ids_used if i in facts_by_id]
+    told_only = bool(noted) and not questions  # they told Dory something that was recorded
+    if free_text_ok(conv.reply, cited, today, own_words, people):
+        reply = conv.reply
+    else:
+        reply = config.STATEMENT_REPLY if statements and not questions else config.CHAT_FALLBACK_REPLY
+    result = ChatResult(reply=reply, status="answered", route="statement" if told_only else "conversation",
+                        fact_ids_used=[f.fact_id for f in cited if f.fact_id is not None], tiers_used=tiers,
+                        notify_family=any(n["outcome"] == "pending_family_check" for n in noted))
     return _finish(person_id, message, result, t0, noted=noted)
 
 

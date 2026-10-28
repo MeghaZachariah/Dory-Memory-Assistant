@@ -48,6 +48,12 @@ def is_health_text(text: str) -> bool:
     return bool(_MED.search(text or "") or _URGENT.search(text or "") or _SYMPTOM.search(text or ""))
 
 
+def mentions_medicine_or_emergency(text: str) -> bool:
+    """Stricter than nothing, looser than is_health_text: a kind "I'm sorry you're not feeling
+    well" is fine in conversation, but medicines, doses and emergencies never are."""
+    return bool(_MED.search(text or "") or _URGENT.search(text or "") or _OVERRIDE.search(text or ""))
+
+
 def is_override_attempt(text: str) -> bool:
     return bool(_OVERRIDE.search(text or ""))
 

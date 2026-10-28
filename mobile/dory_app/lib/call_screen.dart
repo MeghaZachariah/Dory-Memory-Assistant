@@ -27,6 +27,9 @@ class _CallScreenState extends State<CallScreen> {
   String _heard = '';
   bool _hungUp = false;
   bool _closing = false;
+  // The evening call so far, kept so it can still be saved if the call ends early.
+  final List<Map<String, String>> _eveningTurns = [];
+  bool _eveningSaved = false;
 
   static final _goodbye = RegExp(
       r"\b(bye|goodbye|good night|that's all|that is all|no thanks|no thank you|nothing else|stop)\b",
@@ -90,11 +93,12 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   Future<void> _evening(DorySettings settings) async {
-    final turns = <Map<String, String>>[];
+    final turns = _eveningTurns;
     while (_active) {
       _set(phase: _Phase.thinking);
       final next = await _api.eveningTurn(turns);
       turns.add({'speaker': 'Dory', 'text': next.say});
+      if (next.done) _eveningSaved = true; // the server saved the memories with its closing line
       await _say(next.say);
       if (next.done) return;
       var heard = await _listen();
@@ -112,6 +116,8 @@ class _CallScreenState extends State<CallScreen> {
     final name = settings.personName.isEmpty ? '' : ', ${settings.personName}';
     await _say('Hello$name. I’m right here. What would you like to know?');
     var silences = 0;
+    final history = <Map<String, String>>[];
+    final me = settings.personName.isEmpty ? 'Person' : settings.personName;
     while (_active) {
       final heard = await _listen();
       if (heard.isEmpty) {
@@ -129,9 +135,11 @@ class _CallScreenState extends State<CallScreen> {
         return;
       }
       _set(phase: _Phase.thinking);
-      final reply = await _api.chat(heard);
+      final reply = await _api.chat(heard, history: history);
+      history
+        ..add({'speaker': me, 'text': heard})
+        ..add({'speaker': 'Dory', 'text': reply.reply});
       await _say(reply.reply);
-      await _say('Is there anything else?');
     }
   }
 
@@ -140,11 +148,24 @@ class _CallScreenState extends State<CallScreen> {
     _closing = true;
     _hungUp = true;
     await _voice.stop();
+    await _saveEveningIfCutShort();
     await FlutterCallkitIncoming.endAllCalls();
     if (mounted) {
       _set(phase: _Phase.ended);
       await Future.delayed(const Duration(milliseconds: 900));
       if (mounted && Navigator.of(context).canPop()) Navigator.of(context).pop();
+    }
+  }
+
+  /// Hung up before Dory's goodbye: what the person said still becomes memories.
+  Future<void> _saveEveningIfCutShort() async {
+    if (widget.mode != CallMode.evening || _eveningSaved) return;
+    if (!_eveningTurns.any((t) => t['speaker'] != 'Dory')) return;
+    _eveningSaved = true;
+    try {
+      await _api.finishEvening(_eveningTurns).timeout(const Duration(seconds: 20));
+    } catch (_) {
+      // Nothing more to do: the call has ended either way.
     }
   }
 

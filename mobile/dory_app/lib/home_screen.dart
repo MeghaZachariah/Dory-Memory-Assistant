@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -16,14 +18,37 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   DorySettings? _settings;
   bool? _serverOk;
+  Timer? _recheck;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load(firstRun: true);
+    // A moment without signal shouldn't leave "offline" showing: check again every 30 s.
+    _recheck = Timer.periodic(const Duration(seconds: 30), (_) => _checkConnection());
+  }
+
+  @override
+  void dispose() {
+    _recheck?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _checkConnection(); // back in the app
+  }
+
+  Future<void> _checkConnection() async {
+    final s = _settings;
+    if (s == null) return;
+    final ok = await DoryApi(s).health();
+    if (mounted && ok != _serverOk) setState(() => _serverOk = ok);
   }
 
   Future<void> _load({bool firstRun = false}) async {

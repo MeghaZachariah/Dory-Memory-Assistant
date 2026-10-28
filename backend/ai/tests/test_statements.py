@@ -49,7 +49,8 @@ def test_new_statement_is_pending_until_family_confirms(fake_model, db, mary):
     fact = db.facts[n["fact_id"]]
     assert fact.verification == "pending" and fact.event_date == date(2026, 10, 18)
     assert db.questions[n["verify_question_id"]]["question"] == 'Mary said: "Ravi phoned me". Is this true?'
-    assert fake_model.calls_for("answer") == []  # nothing to answer
+    # Dory now replies in its own words; with no model reply here it falls back to the fixed thanks.
+    assert len(fake_model.calls_for("answer")) == 1
 
     # Not used in answers while pending...
     fake_model.on("answer", {"answer": "", "fact_ids_used": [], "status": "unknown"})
@@ -130,4 +131,4 @@ def test_recording_crash_never_breaks_the_reply(fake_model, db, mary, monkeypatc
     monkeypatch.setattr("backend.ai.dory.record_statements", boom)
     r = say("Ravi phoned me.")
     assert r.reply == config.STATEMENT_REPLY and r.noted == []
-    assert db.events[-2]["kind"] == "statement_error"
+    assert any(e["kind"] == "statement_error" for e in db.events)

@@ -97,7 +97,7 @@ class ChatResult(BaseModel):
 
     reply: str
     status: AnswerStatus
-    route: Literal["memory", "medication", "override", "statement", "error"]
+    route: Literal["memory", "medication", "override", "statement", "conversation", "error"]
     fact_ids_used: list[int] = Field(default_factory=list)
     checker: Optional[CheckResult] = None
     blocked: bool = False  # True when the lie-catcher replaced the model's answer
