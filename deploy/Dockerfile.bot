@@ -1,0 +1,12 @@
+# The Telegram family bot (backend/bot). It calls the API inside the server (http://api:8000)
+# and only needs outgoing internet to reach Telegram.
+FROM python:3.12-slim
+
+WORKDIR /app
+COPY backend/bot/requirements.txt /tmp/bot-requirements.txt
+RUN pip install --no-cache-dir -r /tmp/bot-requirements.txt
+
+COPY backend/bot ./backend/bot
+
+ENV PYTHONUNBUFFERED=1
+CMD ["python", "backend/bot/bot.py"]

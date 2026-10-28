@@ -1,0 +1,16 @@
+# The Dory API server (backend/api + backend/ai + db). Build from the repo root:
+#   docker compose build api
+FROM python:3.12-slim
+
+WORKDIR /app
+COPY backend/ai/requirements.txt /tmp/ai-requirements.txt
+COPY backend/api/requirements.txt /tmp/api-requirements.txt
+RUN pip install --no-cache-dir -r /tmp/ai-requirements.txt -r /tmp/api-requirements.txt
+
+COPY backend ./backend
+COPY db/crud.py db/schema.sql ./db/
+
+ENV PYTHONUNBUFFERED=1
+EXPOSE 8000
+# One process only: evening calls in progress and login-attempt limits are kept in memory.
+CMD ["uvicorn", "backend.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]

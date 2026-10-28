@@ -41,7 +41,7 @@ def check_token(x_dory_token: Optional[str] = Header(default=None)) -> None:
         raise HTTPException(status_code=401, detail="Missing or wrong X-Dory-Token header")
 
 
-from backend.api import auth, compat, voice  # noqa: E402
+from backend.api import auth, compat, portal, voice  # noqa: E402
 
 
 @asynccontextmanager
@@ -51,14 +51,18 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Dory API", version="0.1.0", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+# DORY_CORS_ORIGINS: comma-separated websites allowed to call the API (e.g. https://dory.example.com). Default: any.
+CORS_ORIGINS = [o.strip() for o in os.getenv("DORY_CORS_ORIGINS", "*").split(",") if o.strip()]
+app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_methods=["*"], allow_headers=["*"])
 
 # Signed-in families may only reach their own person (auth.login_guard).
 secured = [Depends(check_token), Depends(auth.login_guard)]
 
 app.include_router(auth.router, dependencies=[Depends(check_token)])  # sign up, log in
 app.include_router(voice.router, dependencies=secured)  # family voice (optional)
-app.include_router(compat.router, dependencies=secured)  # web screen, dashboard and bot (mock_server shapes)
+# portal before compat: compat's /dashboard/{person_id} would swallow /dashboard/summary etc.
+app.include_router(portal.router, dependencies=secured)  # family website: patient portal and care center
+app.include_router(compat.router, dependencies=secured)  # older web screen, dashboard and bot (mock_server shapes)
 
 
 # ---------------------------------------------------------------------------
@@ -136,7 +140,12 @@ def post_chat(body: ChatRequest) -> dict:
     if not message:
         raise HTTPException(status_code=400, detail="message is empty")
     result = chat(body.person_id, message, person_name=p.name, family_names=p.family_names)
-    return {**result.model_dump(mode="json"), **compat.chat_extras(body.person_id, result)}
+    return {
+        **result.model_dump(mode="json"),
+        **compat.chat_extras(body.person_id, result),
+        "answer": result.reply,  # the family website reads `answer`
+        "asking_family": result.status == "unknown" and result.pending_question_id is not None,
+    }
 
 
 class EveningRequest(BaseModel):

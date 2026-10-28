@@ -1,0 +1,15 @@
+.git
+.env
+.vscode
+venv
+**/__pycache__
+**/.pytest_cache
+node_modules
+Frontend/node_modules
+Frontend/dist
+mobile
+server-data
+db/dory.db
+backend/voices
+backend/ai/logs
+backend/bot/registry.json

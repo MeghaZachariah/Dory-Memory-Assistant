@@ -1,0 +1,59 @@
+# Dory on one server: website + API + Telegram bot + daily backups.
+#   docker compose up -d --build                # website and API
+#   docker compose --profile bot up -d --build  # also the Telegram bot (needs TELEGRAM_BOT_TOKEN in .env)
+# Settings come from .env (see env.example). Everything Dory stores is in ./server-data.
+
+x-data: &data
+  - ./server-data:/data
+
+services:
+  api:
+    build: { context: ., dockerfile: deploy/Dockerfile.api }
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DORY_DB: sqlite
+      DORY_DB_PATH: /data/dory.db
+      DORY_LOG_PATH: /data/logs/model_calls.jsonl
+      DORY_VOICE_DIR: /data/voices
+      DORY_REGISTRY: /data/registry.json
+      TZ: Asia/Kolkata
+    volumes: *data
+
+  web:
+    build: { context: ., dockerfile: deploy/Dockerfile.web }
+    restart: unless-stopped
+    depends_on: [api]
+    environment:
+      DORY_DOMAIN: ${DORY_DOMAIN:?Set DORY_DOMAIN in .env, e.g. 1-2-3-4.sslip.io}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+
+  bot:
+    profiles: [bot]
+    build: { context: ., dockerfile: deploy/Dockerfile.bot }
+    restart: unless-stopped
+    depends_on: [api]
+    env_file: .env
+    environment:
+      DORY_API: http://api:8000
+      DORY_REGISTRY: /data/registry.json
+      DORY_TZ: Asia/Kolkata
+      TZ: Asia/Kolkata
+    volumes: *data
+
+  backup:
+    image: python:3.12-slim
+    restart: unless-stopped
+    command: ["python", "/app/backup.py"]
+    environment:
+      DORY_DB_PATH: /data/dory.db
+    volumes:
+      - ./server-data:/data
+      - ./deploy/backup.py:/app/backup.py:ro
+
+volumes:
+  caddy-data:
+  caddy-config:

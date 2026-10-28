@@ -1,0 +1,17 @@
+# DORY_DOMAIN, e.g. 129-154-1-2.sslip.io (free: sslip.io turns the server's IP into a name),
+# so Caddy can get a free HTTPS certificate automatically.
+{$DORY_DOMAIN} {
+	encode gzip
+
+	# The Dory API: the phone app, website and anything else use https://<domain>/api/...
+	handle_path /api/* {
+		reverse_proxy api:8000
+	}
+
+	# The family website (a single-page app).
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

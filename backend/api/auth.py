@@ -36,7 +36,7 @@ from typing import Iterator, Optional
 from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
-AUTH_DB = Path(os.getenv("DORY_AUTH_DB", Path(__file__).resolve().parents[2] / "db" / "dory.db"))
+AUTH_DB = Path(os.getenv("DORY_AUTH_DB") or os.getenv("DORY_DB_PATH") or Path(__file__).resolve().parents[2] / "db" / "dory.db")
 REQUIRE_LOGIN = os.getenv("DORY_REQUIRE_LOGIN", "0") == "1"
 SESSION_DAYS = int(os.getenv("DORY_SESSION_DAYS", "180"))  # phones stay signed in for months
 MIN_PASSWORD = 8

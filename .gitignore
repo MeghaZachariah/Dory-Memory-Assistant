@@ -20,3 +20,11 @@ db/dory.db
 backend/ai/logs/
 # Old frontend backup
 Frontend_backup/
+
+# Family voice recordings and cached audio (backend/api/voice.py)
+backend/voices/
+# The family bot's member list
+backend/bot/registry.json
+
+# Everything Dory stores when running with docker compose (deploy/)
+server-data/

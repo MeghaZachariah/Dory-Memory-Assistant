@@ -1,0 +1,14 @@
+# The family website, built once and served by Caddy (automatic HTTPS), which also passes
+# /api/... to the Dory server. The website calls the API at /api on the same address.
+FROM node:22-alpine AS build
+WORKDIR /web
+COPY Frontend/package.json Frontend/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY Frontend/ ./
+ARG VITE_API_BASE=/api
+ENV VITE_API_BASE=$VITE_API_BASE
+RUN npm run build
+
+FROM caddy:2-alpine
+COPY deploy/Caddyfile /etc/caddy/Caddyfile
+COPY --from=build /web/dist /srv

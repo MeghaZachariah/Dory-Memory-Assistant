@@ -1,0 +1,4 @@
+# Scripts and container files run on Linux: always keep Unix line endings.
+*.sh text eol=lf
+deploy/* text eol=lf
+docker-compose.yml text eol=lf

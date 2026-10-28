@@ -35,7 +35,7 @@ FAMILY_CODE = os.getenv("FAMILY_CODE", "dory-family")
 CAREGIVER_CODE = os.getenv("CAREGIVER_CODE", "dory-caregiver")
 TZ = ZoneInfo(os.getenv("DORY_TZ", "Asia/Dubai"))
 REMIND_AFTER = timedelta(minutes=int(os.getenv("REMIND_AFTER_MIN", "30")))
-REGISTRY = Path(__file__).with_name("registry.json")  # who has joined; delete to reset
+REGISTRY = Path(os.getenv("DORY_REGISTRY") or Path(__file__).with_name("registry.json"))  # who has joined; delete to reset
 
 logging.basicConfig(level=logging.INFO)
 

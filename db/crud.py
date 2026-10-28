@@ -1,7 +1,8 @@
 import sqlite3
 import os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "dory.db")
+# DORY_DB_PATH moves the database (e.g. onto a server's permanent disk); default: next to this file.
+DB_PATH = os.getenv("DORY_DB_PATH") or os.path.join(os.path.dirname(__file__), "dory.db")
 
 def get_connection():
     conn = sqlite3.connect(DB_PATH)
