@@ -184,7 +184,7 @@ class _VoiceSetupScreenState extends State<VoiceSetupScreen> {
     final t = Theme.of(context).textTheme;
     final st = _status;
     return Scaffold(
-      appBar: AppBar(title: Text('Family voice', style: t.headlineSmall?.copyWith(fontWeight: FontWeight.w800))),
+      appBar: AppBar(title: Text('Family voice', style: display(28))),
       body: _s == null
           ? const Center(child: CircularProgressIndicator())
           : ListView(

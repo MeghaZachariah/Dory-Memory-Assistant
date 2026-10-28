@@ -110,7 +110,7 @@ class _CallScreenState extends State<CallScreen> {
 
   Future<void> _ask(DorySettings settings) async {
     final name = settings.personName.isEmpty ? '' : ', ${settings.personName}';
-    await _say('Hello$name. What would you like to know?');
+    await _say('Hello$name. I’m right here. What would you like to know?');
     var silences = 0;
     while (_active) {
       final heard = await _listen();
@@ -149,10 +149,10 @@ class _CallScreenState extends State<CallScreen> {
   }
 
   String get _phaseLabel => switch (_phase) {
-        _Phase.connecting => 'Connecting…',
+        _Phase.connecting => 'Dory is coming',
         _Phase.speaking => 'Dory is speaking',
-        _Phase.listening => 'Listening… please speak',
-        _Phase.thinking => 'Thinking…',
+        _Phase.listening => 'I’m listening',
+        _Phase.thinking => 'Let me think',
         _Phase.ended => 'Call ended',
       };
 
@@ -175,8 +175,8 @@ class _CallScreenState extends State<CallScreen> {
             padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
             child: Column(
               children: [
-                Text('Dory', style: t.displaySmall?.copyWith(color: DoryColors.ink, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 8),
+                const DoryLogo(onDark: false),
+                const SizedBox(height: 20),
                 _PhaseChip(label: _phaseLabel, listening: _phase == _Phase.listening),
                 const SizedBox(height: 32),
                 Expanded(
@@ -184,10 +184,10 @@ class _CallScreenState extends State<CallScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(_doryLine, style: t.headlineMedium?.copyWith(color: DoryColors.ink, height: 1.35)),
+                        Text(_doryLine, style: display(32).copyWith(height: 1.25, letterSpacing: -0.6)),
                         if (_heard.isNotEmpty) ...[
                           const SizedBox(height: 28),
-                          Text('You said:', style: t.titleMedium?.copyWith(color: DoryColors.muted)),
+                          Text('YOU SAID', style: eyebrow()),
                           const SizedBox(height: 6),
                           Text(_heard, style: t.headlineSmall?.copyWith(color: DoryColors.primary, height: 1.35)),
                         ],

@@ -126,7 +126,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
         ),
-        title: Text('Settings', style: t.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+        title: Text('Settings', style: display(28)),
       ),
       body: s == null
           ? const Center(child: CircularProgressIndicator())
@@ -148,7 +148,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _SoftButton(label: _testing ? 'Testing…' : 'Test connection', onPressed: _testing ? null : _test),
                   ]),
                 ]),
-                const _SectionLabel('Account'),
+                const _SectionLabel('Your family circle'),
                 _Card(children: [
                   Row(children: [
                     Container(
@@ -160,7 +160,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(s.personName.isEmpty ? 'Signed in' : 'Helping ${s.personName}',
+                        Text(s.personName.isEmpty ? 'Signed in' : 'Caring for ${s.personName}',
                             style: t.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
                         Text(s.accountEmail, style: t.bodyMedium?.copyWith(color: DoryColors.muted)),
                       ]),
@@ -276,10 +276,7 @@ class _SectionLabel extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
         child: Text(
           text.toUpperCase(),
-          style: Theme.of(context)
-              .textTheme
-              .labelMedium
-              ?.copyWith(color: DoryColors.muted, fontWeight: FontWeight.w700, letterSpacing: 1.1),
+          style: eyebrow().copyWith(fontSize: 11, letterSpacing: 1.8),
         ),
       );
 }

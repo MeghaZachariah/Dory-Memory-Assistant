@@ -42,7 +42,7 @@ class DorySettings {
   static Future<DorySettings> load() async {
     final p = await SharedPreferences.getInstance();
     return DorySettings(
-      serverUrl: p.getString('serverUrl') ?? 'http://192.168.1.20:8000',
+      serverUrl: p.getString('serverUrl') ?? 'https://129-225-92-241.sslip.io/api',
       personId: p.getString('personId') ?? 'mary',
       personName: p.getString('personName') ?? 'Mary',
       token: p.getString('token') ?? '',

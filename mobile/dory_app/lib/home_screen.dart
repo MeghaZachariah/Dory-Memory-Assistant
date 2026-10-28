@@ -82,61 +82,58 @@ class _HomeScreenState extends State<HomeScreen> {
     final t = Theme.of(context).textTheme;
     final name = s?.personName ?? '';
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: darkStatusBar,
+      value: lightStatusBar,
       child: Scaffold(
-        body: SafeArea(
-          child: CustomScrollView(
-            slivers: [
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                sliver: SliverList.list(children: [
-                  _Header(onSettings: _openSettings),
-                  const SizedBox(height: 28),
-                  Text(name.isEmpty ? '${_greeting()}.' : '${_greeting()},',
-                      style: t.titleLarge?.copyWith(color: DoryColors.primary, fontWeight: FontWeight.w500)),
-                  if (name.isNotEmpty)
-                    Text(name,
-                        style: t.displayMedium?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -1, height: 1.15)),
-                  const SizedBox(height: 14),
-                  Align(alignment: Alignment.centerLeft, child: _ServerStatus(ok: _serverOk, onFix: _openSettings)),
-                  const SizedBox(height: 24),
-                  _TalkCard(onPressed: () => _call(CallMode.ask)),
-                  const SizedBox(height: 14),
-                  IntrinsicHeight(
-                    child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                      Expanded(
-                        child: _ActionCard(
-                          icon: Icons.nightlight_outlined,
-                          title: 'Evening chat',
-                          subtitle: 'Talk about your day',
-                          onPressed: () => _call(CallMode.evening),
-                        ),
+        body: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(child: _Header(onSettings: _openSettings)),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              sliver: SliverList.list(children: [
+                _Greeting(greeting: _greeting(), name: name, serverOk: _serverOk, onFix: _openSettings),
+                const SizedBox(height: 16),
+                _TalkCard(onPressed: () => _call(CallMode.ask)),
+                const SizedBox(height: 14),
+                IntrinsicHeight(
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                    Expanded(
+                      child: _ActionCard(
+                        icon: Icons.nightlight_outlined,
+                        title: 'Evening chat',
+                        subtitle: 'A little help remembering the day.',
+                        onPressed: () => _call(CallMode.evening),
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: _ActionCard(
-                          icon: Icons.wb_sunny_outlined,
-                          title: 'Morning reminder',
-                          subtitle: 'Plan the day ahead',
-                          onPressed: () => _call(CallMode.briefing),
-                        ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: _ActionCard(
+                        icon: Icons.wb_sunny_outlined,
+                        title: 'Morning briefing',
+                        subtitle: 'Hear today’s plan, gently.',
+                        onPressed: () => _call(CallMode.briefing),
                       ),
-                    ]),
-                  ),
+                    ),
+                  ]),
+                ),
+              ]),
+            ),
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: SafeArea(
+                top: false,
+                minimum: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+                child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
+                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    const Icon(Icons.verified_user_outlined, size: 16, color: DoryColors.ok),
+                    const SizedBox(width: 6),
+                    Text('Dory promise: no source, no answer.', style: t.bodyMedium?.copyWith(color: DoryColors.muted)),
+                  ]),
+                  const SizedBox(height: 12),
+                  _DailyCallsBar(settings: s, onTestRing: _testRing),
                 ]),
               ),
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-                  child: Align(
-                    alignment: Alignment.bottomCenter,
-                    child: _DailyCallsBar(settings: s, onTestRing: _testRing),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -144,38 +141,75 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 /// White rounded card with a thin outline, used for everything except the main button.
-BoxDecoration _cardDecoration({double radius = 22}) => BoxDecoration(
+BoxDecoration _cardDecoration({double radius = 24}) => BoxDecoration(
       color: DoryColors.card,
       borderRadius: BorderRadius.circular(radius),
       border: Border.all(color: DoryColors.border),
     );
 
+/// The navy band at the top, like the website's portal header.
 class _Header extends StatelessWidget {
   const _Header({required this.onSettings});
   final VoidCallback onSettings;
 
   @override
   Widget build(BuildContext context) {
-    return Row(children: [
-      Container(
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(color: DoryColors.primary, borderRadius: BorderRadius.circular(11)),
-        child: const Icon(Icons.graphic_eq, color: Colors.white, size: 22),
-      ),
-      const SizedBox(width: 10),
-      Text('Dory', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-      const Spacer(),
-      Material(
-        color: DoryColors.card,
-        shape: const CircleBorder(side: BorderSide(color: DoryColors.border)),
-        child: IconButton(
-          tooltip: 'Settings',
-          icon: const Icon(Icons.settings_outlined, color: DoryColors.ink),
-          onPressed: onSettings,
+    return Container(
+      color: DoryColors.navy,
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 16, 18),
+          child: Row(children: [
+            const DoryLogo(),
+            const Spacer(),
+            Material(
+              color: Colors.white.withValues(alpha: 0.06),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+                side: BorderSide(color: Colors.white.withValues(alpha: 0.10)),
+              ),
+              child: IconButton(
+                tooltip: 'Settings',
+                icon: const Icon(Icons.settings_outlined, color: Color(0xFF9DB9BC)),
+                onPressed: onSettings,
+              ),
+            ),
+          ]),
         ),
       ),
-    ]);
+    );
+  }
+}
+
+class _Greeting extends StatelessWidget {
+  const _Greeting({required this.greeting, required this.name, required this.serverOk, required this.onFix});
+  final String greeting;
+  final String name;
+  final bool? serverOk;
+  final VoidCallback onFix;
+
+  static const _days = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+  static const _months = [
+    'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', //
+    'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      decoration: _cardDecoration(),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('${_days[now.weekday - 1]}, ${_months[now.month - 1]} ${now.day}', style: eyebrow()),
+        const SizedBox(height: 8),
+        Text(name.isEmpty ? 'Your calm corner is ready.' : '$greeting, $name.', style: display(36)),
+        const SizedBox(height: 14),
+        _ServerStatus(ok: serverOk, onFix: onFix),
+      ]),
+    );
   }
 }
 
@@ -186,32 +220,34 @@ class _ServerStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = Theme.of(context).textTheme.titleSmall;
-    final (label, color) = switch (ok) {
-      null => ('Checking…', DoryColors.muted),
-      true => ('Connected', DoryColors.ok),
-      false => ('Offline', DoryColors.warn),
+    final style = Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700);
+    final (label, dot, fg, bg) = switch (ok) {
+      null => ('Connecting…', DoryColors.muted, DoryColors.muted, DoryColors.page),
+      true => ('Dory is here', DoryColors.ok, const Color(0xFF4E9272), DoryColors.primarySoft),
+      false => (
+          'Memory book offline · Check settings',
+          DoryColors.warn,
+          const Color(0xFF8A5A14),
+          const Color(0xFFFFF4D8),
+        ),
     };
     return InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: ok == false ? onFix : null,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: _cardDecoration(radius: 20),
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.circle, size: 9, color: color),
+          Icon(Icons.circle, size: 9, color: dot),
           const SizedBox(width: 8),
-          Text(label, style: style?.copyWith(color: DoryColors.ink)),
-          if (ok == false) ...[
-            Text('  ·  ', style: style?.copyWith(color: DoryColors.muted)),
-            Text('Check settings', style: style?.copyWith(color: DoryColors.primary, fontWeight: FontWeight.w600)),
-          ],
+          Flexible(child: Text(label, style: style?.copyWith(color: fg))),
         ]),
       ),
     );
   }
 }
 
+/// The main button, in the website's navy-and-mint card style.
 class _TalkCard extends StatelessWidget {
   const _TalkCard({required this.onPressed});
   final VoidCallback onPressed;
@@ -221,36 +257,36 @@ class _TalkCard extends StatelessWidget {
     final t = Theme.of(context).textTheme;
     return DecoratedBox(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(28),
         boxShadow: [
-          BoxShadow(color: DoryColors.primary.withValues(alpha: 0.28), blurRadius: 24, offset: const Offset(0, 10)),
+          BoxShadow(color: DoryColors.deep.withValues(alpha: 0.18), blurRadius: 30, offset: const Offset(0, 14)),
         ],
       ),
       child: Material(
-        color: DoryColors.primary,
-        borderRadius: BorderRadius.circular(26),
+        color: DoryColors.deep,
+        borderRadius: BorderRadius.circular(28),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
-          borderRadius: BorderRadius.circular(26),
           onTap: onPressed,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 30),
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 28),
             child: Row(children: [
               Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18), shape: BoxShape.circle),
-                child: const Icon(Icons.mic_none_rounded, color: Colors.white, size: 30),
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(color: DoryColors.mint.withValues(alpha: 0.15), shape: BoxShape.circle),
+                child: const Icon(Icons.mic_none_rounded, color: DoryColors.mint, size: 30),
               ),
               const SizedBox(width: 18),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text('Talk to Dory',
-                      style: t.headlineSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w800)),
+                      style: t.headlineSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 4),
-                  Text('Tap and start speaking',
-                      style: t.titleMedium?.copyWith(color: Colors.white.withValues(alpha: 0.85))),
+                  Text('Ready when you are', style: t.titleMedium?.copyWith(color: const Color(0xFFA4C0BD))),
                 ]),
               ),
+              const Icon(Icons.arrow_forward_rounded, color: DoryColors.mint),
             ]),
           ),
         ),
@@ -272,7 +308,7 @@ class _ActionCard extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(24),
         onTap: onPressed,
         child: Ink(
           decoration: _cardDecoration(),
@@ -281,13 +317,13 @@ class _ActionCard extends StatelessWidget {
             Container(
               width: 46,
               height: 46,
-              decoration: BoxDecoration(color: DoryColors.primarySoft, borderRadius: BorderRadius.circular(13)),
+              decoration: BoxDecoration(color: DoryColors.primarySoft, borderRadius: BorderRadius.circular(14)),
               child: Icon(icon, color: DoryColors.primary, size: 24),
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 20),
             Text(title, style: t.titleLarge?.copyWith(fontWeight: FontWeight.w700, height: 1.2)),
             const SizedBox(height: 4),
-            Text(subtitle, style: t.bodyLarge?.copyWith(color: DoryColors.muted)),
+            Text(subtitle, style: t.bodyLarge?.copyWith(color: DoryColors.muted, height: 1.35)),
           ]),
         ),
       ),
@@ -312,7 +348,7 @@ class _DailyCallsBar extends StatelessWidget {
             : 'Switched off';
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 14, 14, 14),
-      decoration: _cardDecoration(radius: 20),
+      decoration: _cardDecoration(radius: 22),
       child: Row(children: [
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
@@ -326,10 +362,11 @@ class _DailyCallsBar extends StatelessWidget {
           label: const Text('Test ring · 10s'),
           style: OutlinedButton.styleFrom(
             foregroundColor: DoryColors.primary,
-            backgroundColor: DoryColors.primarySoft.withValues(alpha: 0.5),
-            side: const BorderSide(color: DoryColors.primarySoft, width: 1.5),
+            backgroundColor: DoryColors.primarySoft,
+            side: BorderSide.none,
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            textStyle: t.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            textStyle: t.titleSmall?.copyWith(fontWeight: FontWeight.w700),
           ),
         ),
       ]),
