@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 import 'settings.dart';
+import 'voice.dart' show doryLocale;
 
 class DoryApiException implements Exception {
   DoryApiException(this.message);
@@ -193,7 +194,7 @@ class DoryApi {
           .post(
             _url('/voice/${settings.personId}/speak'),
             headers: _headers,
-            body: jsonEncode({'text': text, 'locale': settings.locale}),
+            body: jsonEncode({'text': text, 'locale': doryLocale}),
           )
           .timeout(const Duration(seconds: 20));
       return res.statusCode == 200 ? res.bodyBytes : null;

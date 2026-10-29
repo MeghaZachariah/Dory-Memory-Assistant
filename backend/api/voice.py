@@ -169,7 +169,7 @@ def delete_voice(person_id: str) -> dict:
 
 class SpeakBody(BaseModel):
     text: str
-    locale: str = "en-IN"
+    locale: str = "en-US"
 
 
 @router.post("/voice/{person_id}/speak")
@@ -187,7 +187,8 @@ def speak(person_id: str, body: SpeakBody) -> Response:
         raise HTTPException(status_code=400, detail="No text")
 
     # Most of Dory's lines repeat (greetings, questions), so each one is made once.
-    key = hashlib.sha1(f"{language}|{text}".encode()).hexdigest()
+    # "us": made with the US English base voice (older clips used the Indian English one).
+    key = hashlib.sha1(f"us|{language}|{text}".encode()).hexdigest()
     cached = _person_dir(person_id) / "cache" / f"{key}.wav"
     if cached.exists():
         return Response(cached.read_bytes(), media_type="audio/wav")

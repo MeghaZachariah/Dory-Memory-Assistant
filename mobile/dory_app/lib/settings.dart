@@ -8,7 +8,6 @@ class DorySettings {
     required this.personId,
     required this.personName,
     required this.token,
-    required this.locale,
     required this.evening,
     required this.morning,
     required this.callsEnabled,
@@ -25,8 +24,6 @@ class DorySettings {
   /// Must match DORY_APP_TOKEN on the server, if one is set. Leave empty otherwise.
   String token;
 
-  /// Language for listening and speaking, e.g. en-IN, hi-IN, ml-IN, ta-IN.
-  String locale;
   TimeOfDay evening;
   TimeOfDay morning;
   bool callsEnabled;
@@ -46,7 +43,6 @@ class DorySettings {
       personId: p.getString('personId') ?? 'mary',
       personName: p.getString('personName') ?? 'Mary',
       token: p.getString('token') ?? '',
-      locale: p.getString('locale') ?? 'en-IN',
       evening: TimeOfDay(hour: p.getInt('eveningHour') ?? 20, minute: p.getInt('eveningMinute') ?? 0),
       morning: TimeOfDay(hour: p.getInt('morningHour') ?? 8, minute: p.getInt('morningMinute') ?? 0),
       callsEnabled: p.getBool('callsEnabled') ?? true,
@@ -62,7 +58,6 @@ class DorySettings {
     await p.setString('personId', personId.trim());
     await p.setString('personName', personName.trim());
     await p.setString('token', token.trim());
-    await p.setString('locale', locale.trim());
     await p.setInt('eveningHour', evening.hour);
     await p.setInt('eveningMinute', evening.minute);
     await p.setInt('morningHour', morning.hour);

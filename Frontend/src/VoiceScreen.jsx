@@ -114,7 +114,7 @@ export default function VoiceScreen({ personId = '', personName = '', onUnknown 
     }
 
     const recognition = new SpeechRecognition();
-    recognition.lang = 'en-IN';
+    recognition.lang = 'en-US';
     recognition.interimResults = false;
     recognition.continuous = false;
     recognition.onstart = () => setStatus('listening');
@@ -147,8 +147,11 @@ export default function VoiceScreen({ personId = '', personName = '', onUnknown 
     }
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.92;
-    utterance.pitch = 1.02;
+    utterance.lang = 'en-US';
+    // The most natural-sounding US English voice the browser has ("Natural" and Google voices first).
+    const voices = window.speechSynthesis.getVoices().filter((voice) => voice.lang.replace('_', '-') === 'en-US');
+    utterance.voice = voices.find((voice) => /natural/i.test(voice.name)) || voices.find((voice) => /google/i.test(voice.name)) || voices[0] || null;
+    utterance.rate = 1;
     utterance.onend = () => setStatus('idle');
     utterance.onerror = () => setStatus('idle');
     speakingRef.current = utterance;

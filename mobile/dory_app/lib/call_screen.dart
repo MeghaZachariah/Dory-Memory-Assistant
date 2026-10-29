@@ -55,8 +55,10 @@ class _CallScreenState extends State<CallScreen> {
 
   Future<void> _say(String text) async {
     if (!_active) return;
-    _set(phase: _Phase.speaking, dory: text, heard: '');
-    await _voice.speak(text);
+    // The words show up the moment Dory starts saying them, not before.
+    await _voice.speak(text, onStart: () {
+      if (_active) _set(phase: _Phase.speaking, dory: text, heard: '');
+    });
   }
 
   Future<String> _listen() async {
@@ -69,7 +71,7 @@ class _CallScreenState extends State<CallScreen> {
   Future<void> _run() async {
     final settings = await DorySettings.load();
     _api = DoryApi(settings);
-    await _voice.init(settings.locale);
+    await _voice.init();
     if (settings.useFamilyVoice) _voice.familyVoice = _api.speakAsFamily;
     if (widget.callId != null) await FlutterCallkitIncoming.setCallConnected(widget.callId!);
     try {

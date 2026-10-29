@@ -7,15 +7,6 @@ import 'settings.dart';
 import 'theme.dart';
 import 'voice_setup_screen.dart';
 
-/// Languages offered in the dropdown: speech-recognition locale -> label.
-const _languages = {
-  'en-IN': 'English (India)',
-  'en-US': 'English (US)',
-  'hi-IN': 'Hindi',
-  'ml-IN': 'Malayalam',
-  'ta-IN': 'Tamil',
-};
-
 /// Set up by a family member, not the person. Server address, name, language and call times.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -28,7 +19,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   DorySettings? _s;
   final _server = TextEditingController();
   final _token = TextEditingController();
-  String _locale = 'en-IN';
   bool? _connected; // null while checking
   bool _testing = false;
 
@@ -41,7 +31,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _s = s;
         _server.text = s.serverUrl;
         _token.text = s.token;
-        _locale = s.locale;
       });
       DoryApi(s).health().then((ok) {
         if (mounted) setState(() => _connected = ok);
@@ -53,8 +42,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final s = _s!;
     s
       ..serverUrl = _server.text
-      ..token = _token.text
-      ..locale = _locale;
+      ..token = _token.text;
     return s;
   }
 
@@ -179,10 +167,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       label: const Text('Sign out'),
                     ),
                   ),
-                ]),
-                const _SectionLabel('Language'),
-                _Card(children: [
-                  _LanguagePicker(value: _locale, onChanged: (v) => setState(() => _locale = v)),
                 ]),
                 const _SectionLabel('Daily calls'),
                 _Card(children: [
@@ -342,35 +326,6 @@ class _Field extends StatelessWidget {
           decoration: _inputDecoration(hint: hint, helper: helper),
         ),
       ]);
-}
-
-class _LanguagePicker extends StatelessWidget {
-  const _LanguagePicker({required this.value, required this.onChanged});
-  final String value;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    // Keep a language set some other way, even if it isn't in the list.
-    final options = {..._languages, if (!_languages.containsKey(value)) value: value};
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const _FieldLabel('Language'),
-      DropdownButtonFormField<String>(
-        initialValue: value,
-        isExpanded: true,
-        decoration: _inputDecoration(),
-        borderRadius: BorderRadius.circular(14),
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600, color: DoryColors.ink),
-        items: [
-          for (final e in options.entries)
-            DropdownMenuItem(value: e.key, child: Text(e.key == e.value ? e.key : '${e.value} · ${e.key}')),
-        ],
-        onChanged: (v) {
-          if (v != null) onChanged(v);
-        },
-      ),
-    ]);
-  }
 }
 
 class _ConnectionStatus extends StatelessWidget {

@@ -34,8 +34,8 @@ TOKEN = os.getenv("VOICE_TOKEN", "")
 FAKE = os.getenv("VOICE_FAKE", "") == "1"
 VOICE_DIR = Path(os.getenv("VOICE_DIR", Path(tempfile.gettempdir()) / "dory_voices"))
 CKPT_DIR = Path(os.getenv("OPENVOICE_CKPT", "checkpoints_v2"))
-BASE_SPEAKER = os.getenv("VOICE_BASE_SPEAKER", "EN_INDIA")
-SPEED = float(os.getenv("VOICE_SPEED", "0.9"))  # a little slower than normal, easier to follow
+BASE_SPEAKER = os.getenv("VOICE_BASE_SPEAKER", "EN-US")
+SPEED = float(os.getenv("VOICE_SPEED", "1.0"))  # a natural talking pace
 SAMPLE_RATE = 22050  # OpenVoice v2 output rate
 # MeloTTS base voices exist for these; Dory only sends English for now.
 LANGUAGES = {"en"}
