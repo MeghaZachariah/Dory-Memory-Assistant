@@ -14,11 +14,11 @@ Built on **NVIDIA Nemotron 3 (Nano, Super and Ultra)**, served by **Nebius Token
 |---|---|
 | 🌐 **Live website** | **https://129-225-92-241.sslip.io/** |
 | 📱 **Android app (APK)** | **[Download dory.apk](https://github.com/MeghaZachariah/Dory-Memory-Assistant/releases/latest/download/dory.apk)** (from [Releases](https://github.com/MeghaZachariah/Dory-Memory-Assistant/releases)) |
-| 🔑 **Demo login** (website and app) | `demo@dory.app` / `dory-demo-2026` |
+| 🔑 **Demo logins** (website and app) | `demo@dory.app` / `dory-demo-2026` (Mary)<br>`arun@gmail.com` / `12345678` (Kavitha, a second family) |
 | 🎬 **Demo video** | _add link_ |
 | 📖 **API docs (live)** | https://129-225-92-241.sslip.io/api/docs |
 
-The demo account belongs to **Mary**, an older woman with memory loss. Her family has already added some of her memories.
+The demo account belongs to **Mary**, an older woman with memory loss. Her family has already added some of her memories. The second account is a different family (Kavitha's): sign in with both to see that each family only ever sees its own person.
 
 ### Test the website
 
